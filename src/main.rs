@@ -85,8 +85,10 @@ fn main() {
 	hop.start(Browser::new("/Users/t/Things/hop"));
 
 	app::run(|| {
+
 		hop.update();
 		hop.draw();
+
 	});
 
 }
