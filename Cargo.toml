@@ -9,7 +9,7 @@ edition = "2018"
 
 [dependencies]
 pom = "3.0.0"
-glob = "0.2.11"
+syntect = "3.1.0"
 regex = "1.1.2"
 gctx = "0.1.0"
 dirty = { git = "https://github.com/slmjkdbtl/DIRTY" }

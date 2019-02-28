@@ -22,6 +22,10 @@ pub struct Conf {
 	ignores: FilterList,
 }
 
+pub enum Error {
+	// ...
+}
+
 enum Selection {
 	Item(usize),
 	Back,
@@ -79,7 +83,11 @@ impl Browser {
 
 	}
 
-	pub fn cd(&mut self, path: PathBuf) {
+	pub fn from_file() -> Result<Self, Error> {
+		unimplemented!("");
+	}
+
+	fn cd(&mut self, path: PathBuf) {
 
 		self.path = path;
 		self.refresh();
@@ -108,7 +116,7 @@ impl Browser {
 
 	}
 
-	pub fn back(&mut self) {
+	fn back(&mut self) {
 
 		let old_path = self.path.clone();
 
@@ -120,7 +128,7 @@ impl Browser {
 
 	}
 
-	pub fn enter(&mut self) {
+	fn enter(&mut self) {
 
 		match self.selection {
 
@@ -145,7 +153,7 @@ impl Browser {
 
 	}
 
-	pub fn move_up(&mut self) {
+	fn move_up(&mut self) {
 
 		if let Selection::Item(i) = self.selection {
 			if i == 0 {
@@ -157,7 +165,7 @@ impl Browser {
 
 	}
 
-	pub fn move_down(&mut self) {
+	fn move_down(&mut self) {
 
 		match self.selection {
 			Selection::Back => {
@@ -170,13 +178,13 @@ impl Browser {
 
 	}
 
-	pub fn select_index(&mut self, i: usize) {
+	fn select_index(&mut self, i: usize) {
 		if self.listings.get(i).is_some() {
 			self.selection = Selection::Item(i);
 		}
 	}
 
-	pub fn refresh(&mut self) {
+	fn refresh(&mut self) {
 
 		self.listings = vec![];
 
@@ -211,7 +219,7 @@ impl Browser {
 
 	}
 
-	pub fn mkdir(&mut self, name: &str) {
+	fn mkdir(&mut self, name: &str) {
 
 		if fs::create_dir(name).is_ok() {
 			self.select_item(&PathBuf::from(name));
@@ -219,7 +227,7 @@ impl Browser {
 
 	}
 
-	pub fn mkfile(&mut self, name: &str) {
+	fn mkfile(&mut self, name: &str) {
 		let buffer = Buffer::new(name);
 		crate::start(buffer);
 	}
@@ -262,7 +270,7 @@ impl Act for Browser {
 		g2d::text("..");
 		g2d::translate(vec2!(0, 24));
 
-		for (i, path) in self.listings.iter().enumerate() {
+		for path in &self.listings {
 
 			let name = get_fname(path);
 
@@ -291,7 +299,6 @@ impl Act for Browser {
 		}
 
 		g2d::pop();
-
 		g2d::translate(vec2!(0, 20));
 
 		match self.selection {
@@ -302,7 +309,7 @@ impl Act for Browser {
 			}
 		}
 
-		g2d::color(color!(1, 1, 1, 0.02));
+		g2d::color(color!(1, 1, 1, 0.05));
 		g2d::rect(vec2!(240, 24));
 
 	}

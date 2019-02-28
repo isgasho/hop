@@ -1,2 +1,8 @@
-/target
+# wengwengweng
+
+target/
+dist/
+Cargo.lock
 **/*.rs.bk
+*.swp
+

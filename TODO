@@ -1,6 +1,8 @@
 # wengwengweng
 
 == DOING
+- lazy redraw
+- buffer get visible lines
 
 == TODO
 - browser scrolling

@@ -85,6 +85,10 @@ fn start<A: Act>(act: A) -> Id {
 	return ctx_mut().start(act);
 }
 
+fn close(id: Id) {
+	return ctx_mut().close(id);
+}
+
 fn update() {
 	return ctx_mut().update();
 }
