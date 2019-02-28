@@ -1,11 +1,13 @@
 // wengwengweng
 
+use std::fs;
 use std::path::PathBuf;
 use std::ffi::OsStr;
 
 use dirty::*;
 use input::Key;
 
+use crate::Buffer;
 use crate::Act;
 
 pub struct Browser {
@@ -13,6 +15,7 @@ pub struct Browser {
 	path: PathBuf,
 	conf: Conf,
 	selection: Selection,
+	markings: Vec<usize>,
 }
 
 pub struct Conf {
@@ -60,16 +63,17 @@ impl FilterList {
 
 impl Browser {
 
-	pub fn new(path: &str) -> Self {
+	pub fn new(path: PathBuf) -> Self {
 
 		let mut browser = Browser {
 			listings: Vec::new(),
-			path: PathBuf::from(path),
+			path: PathBuf::new(),
 			conf: Conf::default(),
 			selection: Selection::Back,
+			markings: Vec::new(),
 		};
 
-		browser.refresh();
+		browser.cd(path);
 
 		return browser;
 
@@ -88,15 +92,19 @@ impl Browser {
 
 	}
 
-	pub fn find(&self, path: &PathBuf) -> Option<usize> {
+	pub fn select_item(&mut self, path: &PathBuf) {
+
+		let mut index = None;
 
 		for (i, p) in self.listings.iter().enumerate() {
 			if p == path {
-				return Some(i);
+				index = Some(i);
 			}
 		}
 
-		return None;
+		if let Some(i) = index {
+			self.select_index(i);
+		}
 
 	}
 
@@ -108,9 +116,7 @@ impl Browser {
 			self.cd(parent.to_path_buf());
 		}
 
-		if let Some(i) = self.find(&old_path) {
-			self.select_item(i);
-		}
+		self.select_item(&old_path);
 
 	}
 
@@ -124,7 +130,8 @@ impl Browser {
 					if path.is_dir() {
 						self.cd(path.clone());
 					} else if path.is_file() {
-						// ...
+						let buffer = Buffer::new(&pathbuf_to_str(path));
+						crate::start(buffer);
 					}
 				}
 
@@ -144,7 +151,7 @@ impl Browser {
 			if i == 0 {
 				self.selection = Selection::Back;
 			} else {
-				self.select_item(i - 1);
+				self.select_index(i - 1);
 			}
 		}
 
@@ -157,13 +164,13 @@ impl Browser {
 				self.selection = Selection::Item(0);
 			}
 			Selection::Item(i) => {
-				self.select_item(i + 1);
+				self.select_index(i + 1);
 			}
 		}
 
 	}
 
-	pub fn select_item(&mut self, i: usize) {
+	pub fn select_index(&mut self, i: usize) {
 		if self.listings.get(i).is_some() {
 			self.selection = Selection::Item(i);
 		}
@@ -202,6 +209,19 @@ impl Browser {
 
 		}
 
+	}
+
+	pub fn mkdir(&mut self, name: &str) {
+
+		if fs::create_dir(name).is_ok() {
+			self.select_item(&PathBuf::from(name));
+		}
+
+	}
+
+	pub fn mkfile(&mut self, name: &str) {
+		let buffer = Buffer::new(name);
+		crate::start(buffer);
 	}
 
 }
@@ -293,7 +313,11 @@ fn osstr_to_str(osstr: &OsStr) -> String {
 	return osstr
 		.to_os_string()
 		.into_string()
-		.expect("failed to parse fname");
+		.expect("failed to parse path");
+}
+
+fn pathbuf_to_str(path: &PathBuf) -> String {
+	return osstr_to_str(path.as_os_str());
 }
 
 fn get_fname(path: &PathBuf) -> String {

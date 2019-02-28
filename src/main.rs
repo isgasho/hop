@@ -1,5 +1,6 @@
 // wengwengweng
 
+use std::path::PathBuf;
 use std::any::Any;
 use std::collections::BTreeMap;
 
@@ -55,24 +56,41 @@ impl HoP {
 
 		if let Some(current_id) = self.current_act {
 			if current_id == id {
-				// ...
+				unimplemented!("go to next available act");
+				// go to next available act
 			}
 		}
 
 	}
 
 	fn update(&mut self) {
-		for (id, act) in &mut self.acts {
-			act.update();
+		if let Some(id) = self.current_act {
+			if let Some(act) = self.acts.get_mut(&id) {
+				act.update();
+			}
 		}
 	}
 
 	fn draw(&self) {
-		for (id, act) in &self.acts {
-			act.draw();
+		if let Some(id) = self.current_act {
+			if let Some(act) = self.acts.get(&id) {
+				act.draw();
+			}
 		}
 	}
 
+}
+
+fn start<A: Act>(act: A) -> Id {
+	return ctx_mut().start(act);
+}
+
+fn update() {
+	return ctx_mut().update();
+}
+
+fn draw() {
+	return ctx_get().draw();
 }
 
 fn main() {
@@ -80,15 +98,13 @@ fn main() {
 	app::init();
 	window::init("HoP", 960, 640);
 
-	let mut hop = HoP::new();
-
-	hop.start(Browser::new("/Users/t/Things/hop"));
+	ctx_init(HoP::new());
+	start(Browser::new(PathBuf::from("/Users/t/Things/hop")));
 
 	app::run(|| {
-
-		hop.update();
-		hop.draw();
-
+		update();
+		draw();
 	});
 
 }
+
