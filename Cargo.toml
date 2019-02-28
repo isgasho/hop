@@ -1,0 +1,16 @@
+# wengwengweng
+
+[package]
+name = "hop"
+description = "Hanging-out Place"
+version = "0.1.0"
+authors = ["t <voygagaga@outlook.com>"]
+edition = "2018"
+
+[dependencies]
+pom = "3.0.0"
+glob = "0.2.11"
+regex = "1.1.2"
+gctx = "0.1.0"
+dirty = { git = "https://github.com/slmjkdbtl/DIRTY" }
+
