@@ -255,7 +255,11 @@ impl Act for Browser {
 		}
 
 		if let Some(scroll) = input::scroll_delta() {
-			// ...
+			if scroll.y > 0 {
+				self.move_up();
+			} else if scroll.y < 0 {
+				self.move_down();
+			}
 		}
 
 	}

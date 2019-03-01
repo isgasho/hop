@@ -30,50 +30,6 @@ pub struct Conf {
 	// ...
 }
 
-fn key_to_char(k: Key) -> Option<char> {
-
-	return match k {
-		Key::A => Some('a'),
-		Key::B => Some('b'),
-		Key::C => Some('c'),
-		Key::D => Some('d'),
-		Key::E => Some('e'),
-		Key::F => Some('f'),
-		Key::G => Some('g'),
-		Key::H => Some('h'),
-		Key::I => Some('i'),
-		Key::J => Some('j'),
-		Key::K => Some('k'),
-		Key::L => Some('l'),
-		Key::M => Some('m'),
-		Key::N => Some('n'),
-		Key::O => Some('o'),
-		Key::P => Some('p'),
-		Key::Q => Some('q'),
-		Key::R => Some('r'),
-		Key::S => Some('s'),
-		Key::T => Some('t'),
-		Key::U => Some('u'),
-		Key::V => Some('v'),
-		Key::W => Some('w'),
-		Key::X => Some('x'),
-		Key::Y => Some('y'),
-		Key::Num1 => Some('1'),
-		Key::Num2 => Some('2'),
-		Key::Num3 => Some('3'),
-		Key::Num4 => Some('4'),
-		Key::Num5 => Some('5'),
-		Key::Num6 => Some('6'),
-		Key::Num7 => Some('7'),
-		Key::Num8 => Some('8'),
-		Key::Num9 => Some('9'),
-		Key::Num0 => Some('0'),
-		Key::Space => Some(' '),
-		_ => None,
-	}
-
-}
-
 #[derive(Clone, Copy)]
 struct CurPos {
 	line: u32,
@@ -95,6 +51,7 @@ impl CurPos {
 enum Mode {
 	Normal,
 	Insert,
+	Command,
 }
 
 struct WordStyle {
@@ -457,8 +414,6 @@ impl Act for Buffer {
 
 	fn update(&mut self) {
 
-		let keys = input::pressed_keys();
-
 		match self.mode {
 
 			Mode::Normal => {
@@ -492,20 +447,20 @@ impl Act for Buffer {
 				}
 
 				if let Some(scroll) = input::scroll_delta() {
-// 					if scroll.y < 0 {
-// 						self.move_up();
-// 					} else if scroll.y > 0 {
-// 						self.move_down();
-// 					}
+					if scroll.y > 0 {
+						self.move_up();
+					} else if scroll.y < 0 {
+						self.move_down();
+					}
 				}
 
 			},
 
 			Mode::Insert => {
 
-				for k in keys {
+				if let Some(text) = input::text_input() {
 
-					if let Some(ch) = key_to_char(k) {
+					for ch in text.chars() {
 						self.insert(ch);
 					}
 
@@ -527,6 +482,18 @@ impl Act for Buffer {
 					// ...
 				}
 
+			},
+
+			Mode::Command => {
+
+				if let Some(text) = input::text_input() {
+					// ...
+				}
+
+				if input::key_pressed(Key::Escape) {
+					self.mode = Mode::Normal;
+				}
+
 			}
 
 		}
@@ -541,6 +508,13 @@ impl Act for Buffer {
 	}
 
 	fn draw(&self) {
+
+		let (w, h) = window::size();
+
+		g2d::scale(vec2!(3));
+
+		g2d::color(color!(0.10, 0.13, 0.17, 1));
+		g2d::rect(vec2!(w, h));
 
 		g2d::translate(vec2!(16));
 		self.draw_text();
@@ -558,6 +532,7 @@ impl Act for Buffer {
 			match self.mode {
 				Mode::Normal => g2d::rect(vec2!(w, h)),
 				Mode::Insert => g2d::rect(vec2!(w / 4, h)),
+				_ => {},
 			}
 
 			g2d::pop();
