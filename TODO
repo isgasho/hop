@@ -1,17 +1,18 @@
 # wengwengweng
 
 == DOING
-- lazy redraw
-- buffer get visible lines
-- buffer syntax highlighting
-- buffer text formatting
-- buffer only multi cursor in insert mode
+- buffer input stream
 
 == TODO
 - browser scrolling
 - global ui widgets
 - visual
+- buffer get visible lines
+- buffer text formatting
+- lazy redraw
+- seperate backend and frontend
 
 == DONE
 - browser working
+- buffer syntax highlighting
 

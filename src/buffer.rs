@@ -31,6 +31,10 @@ pub struct Conf {
 	// ...
 }
 
+struct InputStream {
+	stream: Vec<TextInput>,
+}
+
 #[derive(Clone, Copy)]
 struct CurPos {
 	line: u32,
@@ -394,6 +398,10 @@ impl Act for Buffer {
 					self.start_browser();
 				}
 
+				if input::key_pressed(Key::Semicolon) {
+					self.mode = Mode::Command;
+				}
+
 				if input::key_pressed(Key::H) {
 					self.move_left();
 				}
@@ -429,6 +437,7 @@ impl Act for Buffer {
 				if let Some(i) = input::text_input() {
 
 					match i {
+
 						TextInput::Char(ch) => {
 							self.insert(ch);
 						},
@@ -436,7 +445,9 @@ impl Act for Buffer {
 							self.backspace();
 						},
 						TextInput::Return => {
+							// ...
 						},
+
 					}
 
 				}
@@ -453,8 +464,22 @@ impl Act for Buffer {
 
 			Mode::Command => {
 
-				if let Some(text) = input::text_input() {
-					// ...
+				if let Some(i) = input::text_input() {
+
+					match i {
+
+						TextInput::Char(ch) => {
+							// ...
+						},
+						TextInput::Backspace => {
+							// ...
+						},
+						TextInput::Return => {
+							// ...
+						},
+
+					}
+
 				}
 
 				if input::key_pressed(Key::Escape) {

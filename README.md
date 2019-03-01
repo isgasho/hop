@@ -3,15 +3,20 @@
 ## HoP
 Hanging-out Place
 
-### progress
+### in progress
 
-- [ ] File Browser
-- [ ] Text Editor
+- File Browser
+- Text Editor
 
-- [ ] Music Player
-- [ ] Sprite Editor
-- [ ] Music Editor
-- [ ] Game Editor
-- [ ] Web Editor
-- [ ] Web Browser
+### todo
+
+- Terminal Emulator
+- Music Player
+- Sprite Editor
+- Music Editor
+- Game Editor
+- Animation Editor
+- Video Player
+- Webpage Editor
+- Web Browser
 
