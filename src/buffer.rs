@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use dirty::*;
 use dirty::math::*;
 use input::Key;
+use input::TextInput;
 use syntect::easy::HighlightLines;
 use syntect::parsing::SyntaxSet;
 use syntect::highlighting::ThemeSet;
@@ -425,20 +426,19 @@ impl Act for Buffer {
 
 			Mode::Insert => {
 
-				if let Some(text) = input::text_input() {
+				if let Some(i) = input::text_input() {
 
-					for ch in text.chars() {
-						self.insert(ch);
+					match i {
+						TextInput::Char(ch) => {
+							self.insert(ch);
+						},
+						TextInput::Backspace => {
+							self.backspace();
+						},
+						TextInput::Return => {
+						},
 					}
 
-				}
-
-				if input::key_pressed(Key::Backspace) {
-					self.backspace();
-				}
-
-				if input::key_pressed(Key::Return) {
-					// ...
 				}
 
 				if input::key_pressed(Key::Escape) {
@@ -478,8 +478,6 @@ impl Act for Buffer {
 
 		let (w, h) = window::size();
 
-		g2d::scale(vec2!(3));
-
 		g2d::color(color!(0.10, 0.13, 0.17, 1));
 		g2d::rect(vec2!(w, h));
 
@@ -501,11 +499,6 @@ impl Act for Buffer {
 		}
 
 		g2d::pop();
-
-// 		for l in self.content.lines() {
-// 			g2d::text(&format!("{}", l));
-// 			g2d::translate(vec2!(0, 18));
-// 		}
 
 	}
 
