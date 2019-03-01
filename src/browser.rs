@@ -254,6 +254,10 @@ impl Act for Browser {
 			self.move_up();
 		}
 
+		if let Some(scroll) = input::scroll_delta() {
+			// ...
+		}
+
 	}
 
 	fn draw(&self) {

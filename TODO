@@ -3,6 +3,8 @@
 == DOING
 - lazy redraw
 - buffer get visible lines
+- buffer syntax highlighting
+- buffer text formatting
 
 == TODO
 - browser scrolling
