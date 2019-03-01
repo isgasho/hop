@@ -5,6 +5,7 @@
 - buffer get visible lines
 - buffer syntax highlighting
 - buffer text formatting
+- buffer only multi cursor in insert mode
 
 == TODO
 - browser scrolling
