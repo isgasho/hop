@@ -22,11 +22,56 @@ pub struct Buffer {
 	path: String,
 	content: Vec<String>,
 	rendered: Vec<Vec<(WordStyle, String)>>,
+	redraw: bool,
 
 }
 
 pub struct Conf {
 	// ...
+}
+
+fn key_to_char(k: Key) -> Option<char> {
+
+	return match k {
+		Key::A => Some('a'),
+		Key::B => Some('b'),
+		Key::C => Some('c'),
+		Key::D => Some('d'),
+		Key::E => Some('e'),
+		Key::F => Some('f'),
+		Key::G => Some('g'),
+		Key::H => Some('h'),
+		Key::I => Some('i'),
+		Key::J => Some('j'),
+		Key::K => Some('k'),
+		Key::L => Some('l'),
+		Key::M => Some('m'),
+		Key::N => Some('n'),
+		Key::O => Some('o'),
+		Key::P => Some('p'),
+		Key::Q => Some('q'),
+		Key::R => Some('r'),
+		Key::S => Some('s'),
+		Key::T => Some('t'),
+		Key::U => Some('u'),
+		Key::V => Some('v'),
+		Key::W => Some('w'),
+		Key::X => Some('x'),
+		Key::Y => Some('y'),
+		Key::Num1 => Some('1'),
+		Key::Num2 => Some('2'),
+		Key::Num3 => Some('3'),
+		Key::Num4 => Some('4'),
+		Key::Num5 => Some('5'),
+		Key::Num6 => Some('6'),
+		Key::Num7 => Some('7'),
+		Key::Num8 => Some('8'),
+		Key::Num9 => Some('9'),
+		Key::Num0 => Some('0'),
+		Key::Space => Some(' '),
+		_ => None,
+	}
+
 }
 
 #[derive(Clone, Copy)]
@@ -41,6 +86,9 @@ impl CurPos {
 			line: line,
 			col: col,
 		};
+	}
+	fn as_index(&self) -> (usize, usize) {
+		return (self.col as usize - 1, self.line as usize - 1);
 	}
 }
 
@@ -96,45 +144,13 @@ impl Buffer {
 			content: Vec::new(),
 			rendered: Vec::new(),
 			cursors: vec![CurPos::new(1, 1)],
+			redraw: false,
 
 		};
 
 		buf.read();
 
 		return buf;
-
-	}
-
-	fn get_visible_lines(&self) {
-		unimplemented!();
-	}
-
-	fn get_line(&self, n: usize) -> Option<&String> {
-		return self.content.get(n);
-	}
-
-	fn draw_text(&self) {
-
-		g2d::push();
-
-		for line in &self.rendered {
-
-			g2d::push();
-
-			for (style, text) in line {
-
-				g2d::color(style.fg);
-				g2d::text(&text);
-				g2d::translate(vec2!(10 * text.len(), 0));
-
-			}
-
-			g2d::pop();
-			g2d::translate(vec2!(0, 18));
-
-		}
-
-		g2d::pop();
 
 	}
 
@@ -167,8 +183,11 @@ impl Buffer {
 				.collect();
 
 			self.highlight();
+
 		} else {
+
 			unimplemented!("dialog error (failed to read file)");
+
 		}
 
 	}
@@ -183,9 +202,38 @@ impl Buffer {
 
 	}
 
+	fn add_cursor(&mut self, cur: CurPos) {
+		self.cursors.push(cur);
+	}
+
+	fn reset_cursor(&mut self, cur: CurPos) {
+		self.cursors = vec![cur];
+	}
+
+	fn read_line(&self, ln: u32) -> Option<&String> {
+		return self.content.get(ln as usize - 1);
+	}
+
+	fn write_line(&mut self, ln: u32, content: &str) {
+
+		if let Some(line) = self.content.get_mut(ln as usize - 1) {
+			*line = String::from(content);
+		}
+
+		self.redraw = true;
+
+	}
+
+	fn del_line(&mut self, ln: u32) {
+
+		self.content.remove(ln as usize - 1);
+		self.redraw = true;
+
+	}
+
 	fn move_left(&mut self) {
 
-		for cur in &mut self.cursors {
+		self.cursors = self.cursors.clone().into_iter().map(|mut cur| {
 
 			if cur.col > 1 {
 
@@ -193,61 +241,64 @@ impl Buffer {
 
 			} else {
 
-				if let Some(line) = self.content.get(cur.line as usize - 2) {
+				if let Some(prev_line) = self.read_line(cur.line - 1) {
 
 					cur.line -= 1;
 
-					if line.is_empty() {
+					if prev_line.is_empty() {
 						cur.col = 1;
 					} else {
-						cur.col = line.len() as u32;
+						cur.col = prev_line.len() as u32;
 					}
 
 				}
 
 			}
-		}
+
+			return cur;
+
+		}).collect();
 
 	}
 
 	fn move_right(&mut self) {
 
-		for cur in &mut self.cursors {
+		self.cursors = self.cursors.clone().into_iter().map(|mut cur| {
 
-			if cur.col < self.content[(cur.line - 1) as usize].len() as u32 {
+			if let Some(line) = self.read_line(cur.line) {
 
-				cur.col += 1;
-
-			} else {
-
-				if let Some(line) = self.content.get(cur.line as usize + 1) {
-
-					cur.line += 1;
-					cur.col = 1;
-
+				if cur.col < line.len() as u32 {
+					cur.col += 1;
+				} else {
+					if self.read_line(cur.line + 1).is_some() {
+						cur.line += 1;
+						cur.col = 1;
+					}
 				}
 
 			}
 
-		}
+			return cur;
+
+		}).collect();
 
 	}
 
 	fn move_up(&mut self) {
 
-		for cur in &mut self.cursors {
+		self.cursors = self.cursors.clone().into_iter().map(|mut cur| {
 
-			if let Some(line) = self.content.get(cur.line as usize - 1) {
+			if self.read_line(cur.line).is_some() {
 
-				if let Some(up_line) = self.content.get(cur.line as usize - 2) {
+				if let Some(prev_line) = self.read_line(cur.line - 1) {
 
 					cur.line -= 1;
 
-					if cur.col as usize > up_line.len() {
-						if up_line.is_empty() {
-							cur.col = 1;
-						} else {
-							cur.col = up_line.len() as u32;
+					if prev_line.is_empty() {
+						cur.col = 1;
+					} else {
+						if cur.col as usize > prev_line.len() {
+							cur.col = prev_line.len() as u32;
 						}
 					}
 
@@ -255,25 +306,27 @@ impl Buffer {
 
 			}
 
-		}
+			return cur;
+
+		}).collect();
 
 	}
 
 	fn move_down(&mut self) {
 
-		for cur in &mut self.cursors {
+		self.cursors = self.cursors.clone().into_iter().map(|mut cur| {
 
-			if let Some(line) = self.content.get(cur.line as usize - 1) {
+			if self.read_line(cur.line).is_some() {
 
-				if let Some(down_line) = self.content.get(cur.line as usize) {
+				if let Some(next_line) = self.read_line(cur.line + 1) {
 
 					cur.line += 1;
 
-					if cur.col as usize > down_line.len() {
-						if down_line.is_empty() {
-							cur.col = 1;
-						} else {
-							cur.col = down_line.len() as u32;
+					if next_line.is_empty() {
+						cur.col = 1;
+					} else {
+						if cur.col as usize > next_line.len() {
+							cur.col = next_line.len() as u32;
 						}
 					}
 
@@ -281,7 +334,34 @@ impl Buffer {
 
 			}
 
+			return cur;
+
+		}).collect();
+
+	}
+
+	fn draw_text(&self) {
+
+		g2d::push();
+
+		for line in &self.rendered {
+
+			g2d::push();
+
+			for (style, text) in line {
+
+				g2d::color(style.fg);
+				g2d::text(&text);
+				g2d::translate(vec2!(10 * text.len(), 0));
+
+			}
+
+			g2d::pop();
+			g2d::translate(vec2!(0, 18));
+
 		}
+
+		g2d::pop();
 
 	}
 
@@ -300,6 +380,77 @@ impl Buffer {
 
 	}
 
+	fn insert(&mut self, ch: char) {
+
+		self.cursors = self.cursors.clone().into_iter().map(|mut cur| {
+
+			if let Some(line) = self.read_line(cur.line) {
+
+				let mut content = line.clone();
+
+				content.insert(cur.col as usize - 1, ch);
+				self.write_line(cur.line, &content);
+				cur.col += 1;
+				self.redraw = true;
+
+			}
+
+			return cur;
+
+		}).collect();
+
+	}
+
+	fn backspace(&mut self) {
+
+		self.cursors = self.cursors.clone().into_iter().map(|mut cur| {
+
+			if let Some(line) = self.read_line(cur.line) {
+
+				let before = &line[0..cur.col as usize - 1];
+
+				if before.is_empty() {
+
+					if let Some(prev_line) = self.read_line(cur.line - 1) {
+
+						let mut content = prev_line.clone();
+
+						content.push_str(line);
+						self.del_line(cur.line);
+						self.write_line(cur.line - 1, &content);
+
+					}
+
+				} else {
+
+					let mut content = line.clone();
+
+					content.remove(cur.col as usize - 2);
+					self.write_line(cur.line, &content);
+					cur.col -= 1;
+
+				}
+
+			}
+
+			return cur;
+
+		}).collect();
+
+	}
+
+	fn split(&mut self) {
+
+		for cur in &mut self.cursors {
+
+			if let Some(line) = self.content.get_mut(cur.line as usize - 1) {
+				// ...
+			}
+
+		}
+
+	}
+
 }
 
 impl Act for Buffer {
@@ -308,32 +459,83 @@ impl Act for Buffer {
 
 		let keys = input::pressed_keys();
 
-		if !keys.is_empty() {
+		match self.mode {
+
+			Mode::Normal => {
+
+				if input::key_pressed(Key::Return) {
+					self.mode = Mode::Insert;
+				}
+
+				if input::key_pressed(Key::Tab) {
+					self.start_browser();
+				}
+
+				if input::key_pressed(Key::H) {
+					self.move_left();
+				}
+
+				if input::key_pressed(Key::L) {
+					self.move_right();
+				}
+
+				if input::key_pressed(Key::J) {
+					self.move_down();
+				}
+
+				if input::key_pressed(Key::K) {
+					self.move_up();
+				}
+
+				if input::key_pressed(Key::W) {
+					self.write();
+				}
+
+				if let Some(scroll) = input::scroll_delta() {
+// 					if scroll.y < 0 {
+// 						self.move_up();
+// 					} else if scroll.y > 0 {
+// 						self.move_down();
+// 					}
+				}
+
+			},
+
+			Mode::Insert => {
+
+				for k in keys {
+
+					if let Some(ch) = key_to_char(k) {
+						self.insert(ch);
+					}
+
+				}
+
+				if input::key_pressed(Key::Backspace) {
+					self.backspace();
+				}
+
+				if input::key_pressed(Key::Return) {
+					self.split();
+				}
+
+				if input::key_pressed(Key::Escape) {
+					self.mode = Mode::Normal;
+				}
+
+				if let Some(scroll) = input::scroll_delta() {
+					// ...
+				}
+
+			}
+
+		}
+
+		if self.redraw {
+
 			self.highlight();
-		}
+			self.redraw = false;
 
-		if input::key_pressed(Key::Tab) {
-			self.start_browser();
-		}
-
-		if input::key_pressed(Key::H) {
-			self.move_left();
-		}
-
-		if input::key_pressed(Key::L) {
-			self.move_right();
-		}
-
-		if input::key_pressed(Key::J) {
-			self.move_down();
-		}
-
-		if input::key_pressed(Key::K) {
-			self.move_up();
-		}
-
-		if let Some(scroll) = input::scroll_delta() {
-			// ...
 		}
 
 	}
@@ -346,12 +548,19 @@ impl Act for Buffer {
 
 		for cur in &self.cursors {
 
-			let w = 10;
+			let w = 9;
 			let h = 18;
 
+			g2d::push();
 			g2d::translate(vec2!((cur.col - 1) * w, (cur.line - 1) * h));
-			g2d::color(color!(1, 1, 1, 0.2));
-			g2d::rect(vec2!(w, h));
+			g2d::color(color!(1, 1, 1, 0.5));
+
+			match self.mode {
+				Mode::Normal => g2d::rect(vec2!(w, h)),
+				Mode::Insert => g2d::rect(vec2!(w / 4, h)),
+			}
+
+			g2d::pop();
 
 		}
 
