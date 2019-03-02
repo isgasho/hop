@@ -11,6 +11,7 @@
 - buffer text formatting
 - lazy redraw
 - seperate backend and frontend
+- buffer undo
 
 == DONE
 - browser working

@@ -22,6 +22,12 @@ pub struct Conf {
 	ignores: FilterList,
 }
 
+enum ItemType {
+	Dir,
+	Text,
+	Image,
+}
+
 pub enum Error {
 	// ...
 }
@@ -266,7 +272,7 @@ impl Act for Browser {
 
 	fn draw(&self) {
 
-		let (w, h) = window::size();
+		let (w, h) = window::size().into();
 
 		g2d::color(color!(0.10, 0.13, 0.17, 1));
 		g2d::rect(vec2!(w, h));

@@ -24,7 +24,18 @@ pub struct Buffer {
 	content: Vec<String>,
 	rendered: Vec<Vec<(WordStyle, String)>>,
 	redraw: bool,
+	font: g2d::Font,
 
+}
+
+enum Command {
+	WriteLine {
+		line: u32,
+		content: String,
+	},
+	DelLine {
+		line: u32,
+	}
 }
 
 pub struct Conf {
@@ -106,6 +117,12 @@ impl Buffer {
 			rendered: Vec::new(),
 			cursor: CurPos::new(1, 1),
 			redraw: false,
+			font: g2d::Font::new(
+				gfx::Texture::from_bytes(include_bytes!("res/proggy.png")),
+				95,
+				1,
+				r##" !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~"##,
+			),
 
 		};
 
@@ -170,10 +187,11 @@ impl Buffer {
 	fn write_line(&mut self, ln: u32, content: &str) {
 
 		if let Some(line) = self.content.get_mut(ln as usize - 1) {
-			*line = String::from(content);
-		}
 
-		self.redraw = true;
+			*line = String::from(content);
+			self.redraw = true;
+
+		}
 
 	}
 
@@ -297,12 +315,12 @@ impl Buffer {
 
 				g2d::color(style.fg);
 				g2d::text(&text);
-				g2d::translate(vec2!(10 * text.len(), 0));
+				g2d::translate(vec2!(g2d::text_width(text), 0));
 
 			}
 
 			g2d::pop();
-			g2d::translate(vec2!(0, 18));
+			g2d::translate(vec2!(0, g2d::text_height()));
 
 		}
 
@@ -501,7 +519,10 @@ impl Act for Buffer {
 
 	fn draw(&self) {
 
-		let (w, h) = window::size();
+		g2d::scale(vec2!(2));
+		g2d::set_font(&self.font);
+
+		let (w, h) = window::size().into();
 
 		g2d::color(color!(0.10, 0.13, 0.17, 1));
 		g2d::rect(vec2!(w, h));
@@ -510,10 +531,11 @@ impl Act for Buffer {
 		self.draw_text();
 		g2d::translate(vec2!(-3, 0));
 
-		let w = 9;
-		let h = 18;
+		let w = g2d::text_width(" ");
+		let h = g2d::text_height();
 
 		g2d::push();
+		g2d::translate(vec2!(2, 1));
 		g2d::translate(vec2!((self.cursor.col - 1) * w, (self.cursor.line - 1) * h));
 		g2d::color(color!(1, 1, 1, 0.5));
 
