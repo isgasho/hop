@@ -9,9 +9,10 @@
 - visual
 - buffer get visible lines
 - buffer text formatting
-- lazy redraw
 - seperate backend and frontend
 - buffer undo
+- fix buffer cursor for tabs
+- smooth scroll simulation
 
 == DONE
 - browser working

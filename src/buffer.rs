@@ -10,7 +10,8 @@ use input::TextInput;
 use syntect::easy::HighlightLines;
 use syntect::parsing::SyntaxSet;
 use syntect::highlighting::ThemeSet;
-use syntect::highlighting::Style;
+use clipboard::ClipboardProvider;
+use clipboard::ClipboardContext;
 
 use crate::Act;
 use crate::Browser;
@@ -26,22 +27,30 @@ pub struct Buffer {
 	start_line: u32,
 	syntax_set: SyntaxSet,
 	theme_set: ThemeSet,
+	undo_stack: Vec<State>,
+	clipboard: ClipboardContext,
 	font: g2d::Font,
+	conf: Conf,
 
 }
 
-enum Command {
-	WriteLine {
-		line: u32,
-		content: String,
-	},
-	DelLine {
-		line: u32,
-	}
+struct State {
+	content: Vec<String>,
+	cursor: CurPos,
 }
 
 pub struct Conf {
-	// ...
+	scroll_off: u32,
+	scale: f32,
+}
+
+impl Default for Conf {
+	fn default() -> Self {
+		return Self {
+			scroll_off: 3,
+			scale: 1.5,
+		};
+	}
 }
 
 struct InputStream {
@@ -93,11 +102,14 @@ impl Buffer {
 			start_line: 1,
 			syntax_set: SyntaxSet::load_defaults_newlines(),
 			theme_set: ThemeSet::load_defaults(),
+			conf: Conf::default(),
+			undo_stack: Vec::new(),
+			clipboard: ClipboardProvider::new().unwrap(),
 			font: g2d::Font::new(
-				gfx::Texture::from_bytes(include_bytes!("res/proggy.png")),
-				95,
-				1,
-				r##" !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~"##,
+				gfx::Texture::from_bytes(crate::FONT),
+				crate::FONT_COLS,
+				crate::FONT_ROWS,
+				crate::FONT_CHARS,
 			),
 
 		};
@@ -191,13 +203,34 @@ impl Buffer {
 	}
 
 	fn del_line(&mut self, ln: u32) {
+
+		self.push();
 		self.content.remove(ln as usize - 1);
+
+	}
+
+	fn push(&mut self) {
+
+		self.undo_stack.push(State {
+			content: self.content.clone(),
+			cursor: self.cursor.clone(),
+		});
+
+	}
+
+	fn pop(&mut self) {
+
+		if let Some(state) = self.undo_stack.pop() {
+			self.content = state.content;
+			self.cursor = state.cursor;
+		}
+
 	}
 
 	fn view_move_down(&mut self) {
 
 		if self.start_line < self.content.len() as u32 {
-			if self.cursor.line - self.start_line >= 3 {
+			if self.cursor.line - self.start_line >= self.conf.scroll_off {
 				self.start_line += 1;
 			}
 		}
@@ -207,7 +240,9 @@ impl Buffer {
 	fn view_move_up(&mut self) {
 
 		if self.start_line > 1 {
-			self.start_line -= 1;
+			if self.cursor.line < self.start_line + self.get_rows() - self.conf.scroll_off {
+				self.start_line -= 1;
+			}
 		}
 
 	}
@@ -285,6 +320,10 @@ impl Buffer {
 
 		self.cursor = cur;
 
+		if self.cursor.line < self.start_line + self.conf.scroll_off {
+			self.view_move_up();
+		}
+
 	}
 
 	fn move_down(&mut self) {
@@ -311,6 +350,10 @@ impl Buffer {
 
 		self.cursor = cur;
 
+		if self.cursor.line >= self.start_line + self.get_rows() - self.conf.scroll_off {
+			self.view_move_down();
+		}
+
 	}
 
 	fn start_browser(&self) {
@@ -325,6 +368,17 @@ impl Buffer {
 			crate::start(browser);
 
 		}
+
+	}
+
+	fn get_rows(&self) -> u32 {
+
+		g2d::set_font(&self.font);
+
+		let (w, h) = window::size().into();
+		let rows = h as f32 / (g2d::text_height() as f32 * self.conf.scale);
+
+		return rows as u32;
 
 	}
 
@@ -398,6 +452,12 @@ impl Act for Buffer {
 
 						TextInput::Char(ch) => {
 
+							if ch == 'y' {
+								if let Some(content) = self.read_line(self.cursor.line) {
+									self.clipboard.set_contents(content.clone()).unwrap();
+								}
+							}
+
 							if ch == 'h' {
 								self.move_left();
 							}
@@ -412,6 +472,14 @@ impl Act for Buffer {
 
 							if ch == 'k' {
 								self.move_up();
+							}
+
+							if ch == 'u' {
+								self.pop();
+							}
+
+							if ch == 'd' {
+								self.del_line(self.cursor.line);
 							}
 
 						},
@@ -465,11 +533,33 @@ impl Act for Buffer {
 				}
 
 				if let Some(scroll) = input::scroll_delta() {
-					if scroll.y > 0 {
-						self.move_up();
-					} else if scroll.y < 0 {
-						self.move_down();
+
+					if input::key_down(Key::LAlt) {
+
+						if scroll.y > 0 {
+							for _ in 0..scroll.y.abs() {
+								self.view_move_up();
+							}
+						} else if scroll.y < 0 {
+							for _ in 0..scroll.y.abs() {
+								self.view_move_down();
+							}
+						}
+
+					} else {
+
+						if scroll.y > 0 {
+							for _ in 0..scroll.y.abs() {
+								self.move_up();
+							}
+						} else if scroll.y < 0 {
+							for _ in 0..scroll.y.abs() {
+								self.move_down();
+							}
+						}
+
 					}
+
 				}
 
 			},
@@ -481,26 +571,51 @@ impl Act for Buffer {
 					match i {
 
 						TextInput::Char(ch) => {
-							self.insert(ch);
+
+							if input::key_down(Key::LAlt) {
+								// ..
+							} else {
+								self.insert(ch);
+							}
+
 						},
+
 						TextInput::Backspace => {
-							self.backspace();
+
+							if input::key_down(Key::LAlt) {
+								// ..
+							} else {
+								self.backspace();
+							}
+
 						},
+
 						TextInput::Return => {
-							// ...
+
+							if input::key_down(Key::LAlt) {
+								// ..
+							} else {
+								// ..
+							}
+
 						},
+
 						TextInput::Tab => {
 							self.insert('\t');
 						},
+
 						TextInput::Up => {
 							// ...
 						},
+
 						TextInput::Down => {
 							// ...
 						},
+
 						TextInput::Left => {
 							// ...
 						},
+
 						TextInput::Right => {
 							// ...
 						},
@@ -514,7 +629,13 @@ impl Act for Buffer {
 				}
 
 				if let Some(scroll) = input::scroll_delta() {
-					// ...
+
+					if scroll.y > 0 {
+						self.view_move_up();
+					} else if scroll.y < 0 {
+						self.view_move_down();
+					}
+
 				}
 
 			},
@@ -568,16 +689,36 @@ impl Act for Buffer {
 
 	fn draw(&self) {
 
-		g2d::scale(vec2!(2));
+		g2d::scale(vec2!(self.conf.scale));
 		g2d::set_font(&self.font);
 
 		let (w, h) = window::size().into();
+		let tw = g2d::text_width(" ");
+		let th = g2d::text_height();
 
 		g2d::color(color!(0.10, 0.13, 0.17, 1));
 		g2d::rect(vec2!(w, h));
 
+		// viewport
 		g2d::translate(vec2!(8, (self.start_line - 1) as i32 * -1 * g2d::text_height() as i32));
 
+		// cursor
+		g2d::push();
+		g2d::color(color!(0.15, 0.18, 0.22, 1));
+		g2d::translate(vec2!(0, (self.cursor.line - 1) * th));
+		g2d::rect(vec2!(w, th));
+		g2d::translate(vec2!((self.cursor.col - 1) * tw, 0));
+		g2d::color(color!(0.84));
+
+		match self.mode {
+			Mode::Normal => g2d::rect(vec2!(tw, th)),
+			Mode::Insert => g2d::rect(vec2!(tw / 4, th)),
+			_ => {},
+		}
+
+		g2d::pop();
+
+		// content
 		g2d::push();
 
 		for line in &self.rendered {
@@ -595,24 +736,6 @@ impl Act for Buffer {
 			g2d::pop();
 			g2d::translate(vec2!(0, g2d::text_height()));
 
-		}
-
-		g2d::pop();
-
-		g2d::translate(vec2!(-3, 0));
-
-		let w = g2d::text_width(" ");
-		let h = g2d::text_height();
-
-		g2d::push();
-		g2d::translate(vec2!(3, 1));
-		g2d::translate(vec2!((self.cursor.col - 1) * w, (self.cursor.line - 1) * h));
-		g2d::color(color!(1, 1, 1, 0.5));
-
-		match self.mode {
-			Mode::Normal => g2d::rect(vec2!(w, h)),
-			Mode::Insert => g2d::rect(vec2!(w / 4, h)),
-			_ => {},
 		}
 
 		g2d::pop();

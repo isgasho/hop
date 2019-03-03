@@ -13,6 +13,8 @@ mod browser;
 use buffer::*;
 use browser::*;
 
+include!("res/font.rs");
+
 trait Act: Any {
 	fn update(&mut self);
 	fn draw(&self);

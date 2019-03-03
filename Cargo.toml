@@ -12,5 +12,6 @@ pom = "3.0.0"
 syntect = "3.1.0"
 regex = "1.1.2"
 gctx = "0.1.0"
+clipboard = "0.5.0"
 dirty = { git = "https://github.com/slmjkdbtl/DIRTY" }
 

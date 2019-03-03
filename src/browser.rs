@@ -16,10 +16,16 @@ pub struct Browser {
 	conf: Conf,
 	selection: Selection,
 	markings: Vec<usize>,
+	font: g2d::Font,
 }
 
 pub struct Conf {
 	ignores: FilterList,
+}
+
+struct Item {
+	path: PathBuf,
+	kind: ItemType,
 }
 
 enum ItemType {
@@ -81,6 +87,12 @@ impl Browser {
 			conf: Conf::default(),
 			selection: Selection::Back,
 			markings: Vec::new(),
+			font: g2d::Font::new(
+				gfx::Texture::from_bytes(crate::FONT),
+				crate::FONT_COLS,
+				crate::FONT_ROWS,
+				crate::FONT_CHARS,
+			),
 		};
 
 		browser.cd(path);
@@ -274,11 +286,14 @@ impl Act for Browser {
 
 		let (w, h) = window::size().into();
 
+		g2d::scale(vec2!(1.5));
+		g2d::set_font(&self.font);
+
 		g2d::color(color!(0.10, 0.13, 0.17, 1));
 		g2d::rect(vec2!(w, h));
 
 		g2d::push();
-		g2d::translate(vec2!(24));
+		g2d::translate(vec2!(16));
 
 		g2d::color(color!(0.98, 0.78, 0.39, 1));
 		g2d::text("..");
@@ -313,7 +328,7 @@ impl Act for Browser {
 		}
 
 		g2d::pop();
-		g2d::translate(vec2!(0, 20));
+		g2d::translate(vec2!(0, 12));
 
 		match self.selection {
 			Selection::Back => {
