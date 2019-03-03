@@ -2,6 +2,7 @@
 
 use std::fs;
 use std::path::PathBuf;
+use std::collections::HashMap;
 
 use dirty::*;
 use dirty::math::*;
@@ -45,19 +46,29 @@ struct State {
 pub struct Conf {
 	scroll_off: u32,
 	scale: f32,
+	wrapped_chars: HashMap<char, char>,
 }
 
 impl Default for Conf {
+
 	fn default() -> Self {
+
+		let mut wrapped_chars = HashMap::new();
+
+		wrapped_chars.insert('(', ')');
+		wrapped_chars.insert('\'', '\'');
+		wrapped_chars.insert('"', '"');
+		wrapped_chars.insert('{', '}');
+		wrapped_chars.insert('[', ']');
+
 		return Self {
 			scroll_off: 3,
 			scale: 1.5,
+			wrapped_chars: wrapped_chars,
 		};
-	}
-}
 
-struct InputStream {
-	stream: Vec<TextInput>,
+	}
+
 }
 
 #[derive(Clone, Copy)]
@@ -539,9 +550,15 @@ impl Buffer {
 
 			let mut content = line.clone();
 
-			content.insert(cur.col as usize - 1, ch);
-			self.set_line(cur.line, &content);
+			if let Some(end_char) = self.conf.wrapped_chars.get(&ch) {
+				content.insert(cur.col as usize - 1, ch);
+				content.insert(cur.col as usize, *end_char);
+			} else {
+				content.insert(cur.col as usize - 1, ch);
+			}
+
 			cur.col += 1;
+			self.set_line(cur.line, &content);
 
 		}
 
@@ -572,6 +589,7 @@ impl Buffer {
 			} else {
 
 				let mut content = line.clone();
+// 				let ch = content.
 
 				content.remove(cur.col as usize - 2);
 				self.set_line(cur.line, &content);
