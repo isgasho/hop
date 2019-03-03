@@ -9,7 +9,9 @@ use input::Key;
 use input::TextInput;
 use syntect::easy::HighlightLines;
 use syntect::parsing::SyntaxSet;
+use syntect::parsing::SyntaxReference;
 use syntect::highlighting::ThemeSet;
+use syntect::highlighting::Style;
 use clipboard::ClipboardProvider;
 use clipboard::ClipboardContext;
 
@@ -26,6 +28,7 @@ pub struct Buffer {
 	rendered: Vec<Vec<StyledWord>>,
 	start_line: u32,
 	syntax_set: SyntaxSet,
+	syntax: Option<SyntaxReference>,
 	theme_set: ThemeSet,
 	undo_stack: Vec<State>,
 	clipboard: ClipboardContext,
@@ -78,6 +81,7 @@ enum Mode {
 	Normal,
 	Insert,
 	Command,
+	Select,
 }
 
 #[derive(Debug, Clone)]
@@ -87,9 +91,46 @@ struct StyledWord {
 	text: String,
 }
 
+impl StyledWord {
+
+	fn from_syntect(def: &(Style, &str)) -> Self {
+
+		let sty = def.0;
+		let text = def.1;
+		let fg = sty.foreground;
+		let bg = sty.background;
+
+		let fg = color!(
+			fg.r as f32 / 255.0,
+			fg.g as f32 / 255.0,
+			fg.b as f32 / 255.0,
+			fg.a as f32 / 255.0
+		);
+
+		let bg = color!(
+			bg.r as f32 / 255.0,
+			bg.g as f32 / 255.0,
+			bg.b as f32 / 255.0,
+			bg.a as f32 / 255.0
+		);
+
+		return Self {
+
+			fg: fg,
+			bg: bg,
+			text: String::from(text),
+
+		};
+
+	}
+}
+
 impl Buffer {
 
 	pub fn new(path: &str) -> Self {
+
+		let syntax_set = SyntaxSet::load_defaults_newlines();
+		let syntax = syntax_set.find_syntax_by_extension("rs").map(Clone::clone);
 
 		let mut buf = Self {
 
@@ -97,10 +138,11 @@ impl Buffer {
 			selections: Vec::new(),
 			path: path.to_owned(),
 			content: Vec::new(),
-			rendered: Vec::new(),
+			rendered: Vec::with_capacity(1024),
 			cursor: CurPos::new(1, 1),
 			start_line: 1,
-			syntax_set: SyntaxSet::load_defaults_newlines(),
+			syntax_set: syntax_set,
+			syntax: syntax,
 			theme_set: ThemeSet::load_defaults(),
 			conf: Conf::default(),
 			undo_stack: Vec::new(),
@@ -120,44 +162,53 @@ impl Buffer {
 
 	}
 
-	fn highlight(&mut self) {
+	fn highlight_line(&mut self, ln: u32) {
 
-		let syntax = self.syntax_set.find_syntax_by_extension("rs").unwrap();
-		let mut h = HighlightLines::new(syntax, &self.theme_set.themes["base16-ocean.dark"]);
+		if let Some(syntax) = &self.syntax {
 
-		self.rendered = self.content
-			.iter()
-			.map(|l| h.highlight(l, &self.syntax_set))
-			.map(|v| v
+			let mut h = HighlightLines::new(&syntax, &self.theme_set.themes["base16-ocean.dark"]);
+
+			if let Some(content) = self.get_line(ln).map(Clone::clone) {
+
+				if let Some(s) = self.rendered.get_mut(ln as usize - 1) {
+
+					*s = h.highlight(&content, &self.syntax_set)
+						.iter()
+						.map(StyledWord::from_syntect)
+						.collect();
+
+				}
+
+			}
+
+		} else {
+
+// 			self.rendered = self.content
+// 				.iter()
+// 				.collect();
+
+
+		}
+
+	}
+
+	fn highlight_all(&mut self) {
+
+		if let Some(syntax) = &self.syntax {
+
+			let mut h = HighlightLines::new(&syntax, &self.theme_set.themes["base16-ocean.dark"]);
+
+			self.rendered = self.content
 				.iter()
-				.map(|(sty, text)| {
+				.map(|l| h.highlight(l, &self.syntax_set))
+				.map(|v| v.iter()
+					 .map(StyledWord::from_syntect)
+					 .collect())
+				.collect();
 
-					let fg = sty.foreground;
-					let bg = sty.background;
-
-					let fg = color!(
-						fg.r as f32 / 255.0,
-						fg.g as f32 / 255.0,
-						fg.b as f32 / 255.0,
-						fg.a as f32 / 255.0
-					);
-
-					let bg = color!(
-						bg.r as f32 / 255.0,
-						bg.g as f32 / 255.0,
-						bg.b as f32 / 255.0,
-						bg.a as f32 / 255.0
-					);
-
-					return StyledWord {
-						fg: fg,
-						bg: bg,
-						text: String::from(*text),
-					}
-
-				})
-				.collect())
-			.collect();
+		} else {
+			// ...
+		}
 
 	}
 
@@ -170,7 +221,7 @@ impl Buffer {
 				.map(|st| String::from(st))
 				.collect();
 
-			self.highlight();
+			self.highlight_all();
 
 		} else {
 
@@ -190,14 +241,15 @@ impl Buffer {
 
 	}
 
-	fn read_line(&self, ln: u32) -> Option<&String> {
+	fn get_line(&self, ln: u32) -> Option<&String> {
 		return self.content.get(ln as usize - 1);
 	}
 
-	fn write_line(&mut self, ln: u32, content: &str) {
+	fn set_line(&mut self, ln: u32, content: &str) {
 
 		if let Some(line) = self.content.get_mut(ln as usize - 1) {
 			*line = String::from(content);
+			self.highlight_line(ln);
 		}
 
 	}
@@ -206,6 +258,24 @@ impl Buffer {
 
 		self.push();
 		self.content.remove(ln as usize - 1);
+		self.rendered.remove(ln as usize - 1);
+
+	}
+
+	fn insert_line(&mut self, ln: u32) {
+
+		self.push();
+		self.content.insert(ln as usize - 1, String::new());
+		self.rendered.insert(ln as usize - 1, Vec::new());
+		self.move_down();
+
+	}
+
+	fn copy_line(&mut self, ln: u32) {
+
+		if let Some(content) = self.get_line(ln) {
+			self.clipboard.set_contents(content.clone()).unwrap();
+		}
 
 	}
 
@@ -218,16 +288,19 @@ impl Buffer {
 
 	}
 
-	fn pop(&mut self) {
+	fn undo(&mut self) {
 
 		if let Some(state) = self.undo_stack.pop() {
+
 			self.content = state.content;
 			self.cursor = state.cursor;
+			self.highlight_all();
+
 		}
 
 	}
 
-	fn view_move_down(&mut self) {
+	fn scroll_down(&mut self) {
 
 		if self.start_line < self.content.len() as u32 {
 			if self.cursor.line - self.start_line >= self.conf.scroll_off {
@@ -237,7 +310,7 @@ impl Buffer {
 
 	}
 
-	fn view_move_up(&mut self) {
+	fn scroll_up(&mut self) {
 
 		if self.start_line > 1 {
 			if self.cursor.line < self.start_line + self.get_rows() - self.conf.scroll_off {
@@ -252,23 +325,7 @@ impl Buffer {
 		let mut cur = self.cursor.clone();
 
 		if cur.col > 1 {
-
 			cur.col -= 1;
-
-		} else {
-
-			if let Some(prev_line) = self.read_line(cur.line - 1) {
-
-				cur.line -= 1;
-
-				if prev_line.is_empty() {
-					cur.col = 1;
-				} else {
-					cur.col = prev_line.len() as u32;
-				}
-
-			}
-
 		}
 
 		self.cursor = cur;
@@ -279,15 +336,18 @@ impl Buffer {
 
 		let mut cur = self.cursor.clone();
 
-		if let Some(line) = self.read_line(cur.line) {
+		if let Some(line) = self.get_line(cur.line) {
 
-			if cur.col < line.len() as u32 {
-				cur.col += 1;
+			let len;
+
+			if let Mode::Insert = self.mode {
+				len = line.len() + 1;
 			} else {
-				if self.read_line(cur.line + 1).is_some() {
-					cur.line += 1;
-					cur.col = 1;
-				}
+				len = line.len()
+			}
+
+			if cur.col < len as u32 {
+				cur.col += 1;
 			}
 
 		}
@@ -300,9 +360,9 @@ impl Buffer {
 
 		let mut cur = self.cursor.clone();
 
-		if self.read_line(cur.line).is_some() {
+		if self.get_line(cur.line).is_some() {
 
-			if let Some(prev_line) = self.read_line(cur.line - 1) {
+			if let Some(prev_line) = self.get_line(cur.line - 1) {
 
 				cur.line -= 1;
 
@@ -321,7 +381,7 @@ impl Buffer {
 		self.cursor = cur;
 
 		if self.cursor.line < self.start_line + self.conf.scroll_off {
-			self.view_move_up();
+			self.scroll_up();
 		}
 
 	}
@@ -330,9 +390,9 @@ impl Buffer {
 
 		let mut cur = self.cursor.clone();
 
-		if self.read_line(cur.line).is_some() {
+		if self.get_line(cur.line).is_some() {
 
-			if let Some(next_line) = self.read_line(cur.line + 1) {
+			if let Some(next_line) = self.get_line(cur.line + 1) {
 
 				cur.line += 1;
 
@@ -351,8 +411,97 @@ impl Buffer {
 		self.cursor = cur;
 
 		if self.cursor.line >= self.start_line + self.get_rows() - self.conf.scroll_off {
-			self.view_move_down();
+			self.scroll_down();
 		}
+
+	}
+
+	fn move_right_word(&mut self) {
+
+		let mut cur = self.cursor.clone();
+
+		// ...
+
+		self.cursor = cur;
+
+	}
+
+	fn move_left_word(&mut self) {
+
+		let mut cur = self.cursor.clone();
+
+		// ...
+
+		self.cursor = cur;
+
+	}
+
+	fn start_normal(&mut self) {
+
+		if let Mode::Normal = self.mode {
+			return;
+		}
+
+		self.mode = Mode::Normal;
+		self.move_left();
+
+	}
+
+	fn start_insert(&mut self) {
+
+		if let Mode::Insert = self.mode {
+			return;
+		}
+
+		self.mode = Mode::Insert;
+		self.move_right();
+
+	}
+
+	fn start_command(&mut self) {
+
+		if let Mode::Command = self.mode {
+			return;
+		}
+
+		self.mode = Mode::Command;
+
+	}
+
+	fn move_line_start(&mut self) {
+
+		let mut cur = self.cursor.clone();
+
+		// ...
+
+		self.cursor = cur;
+
+	}
+
+	fn move_line_start_insert(&mut self) {
+
+		self.move_line_start();
+		self.start_insert();
+		self.move_left();
+
+	}
+
+	fn move_line_end(&mut self) {
+
+		let mut cur = self.cursor.clone();
+
+		if let Some(line) = self.get_line(cur.line) {
+			cur.col = line.len() as u32;
+		}
+
+		self.cursor = cur;
+
+	}
+
+	fn move_line_end_insert(&mut self) {
+
+		self.move_line_end();
+		self.start_insert();
 
 	}
 
@@ -386,12 +535,12 @@ impl Buffer {
 
 		let mut cur = self.cursor.clone();
 
-		if let Some(line) = self.read_line(cur.line) {
+		if let Some(line) = self.get_line(cur.line) {
 
 			let mut content = line.clone();
 
 			content.insert(cur.col as usize - 1, ch);
-			self.write_line(cur.line, &content);
+			self.set_line(cur.line, &content);
 			cur.col += 1;
 
 		}
@@ -400,23 +549,23 @@ impl Buffer {
 
 	}
 
-	fn backspace(&mut self) {
+	fn del(&mut self) {
 
 		let mut cur = self.cursor.clone();
 
-		if let Some(line) = self.read_line(cur.line) {
+		if let Some(line) = self.get_line(cur.line) {
 
 			let before = &line[0..cur.col as usize - 1];
 
 			if before.is_empty() {
 
-				if let Some(prev_line) = self.read_line(cur.line - 1) {
+				if let Some(prev_line) = self.get_line(cur.line - 1) {
 
 					let mut content = prev_line.clone();
 
 					content.push_str(line);
 					self.del_line(cur.line);
-					self.write_line(cur.line - 1, &content);
+					self.set_line(cur.line - 1, &content);
 
 				}
 
@@ -425,12 +574,22 @@ impl Buffer {
 				let mut content = line.clone();
 
 				content.remove(cur.col as usize - 2);
-				self.write_line(cur.line, &content);
+				self.set_line(cur.line, &content);
 				cur.col -= 1;
 
 			}
 
 		}
+
+		self.cursor = cur;
+
+	}
+
+	fn del_word(&mut self) {
+
+		let mut cur = self.cursor.clone();
+
+		// ...
 
 		self.cursor = cur;
 
@@ -452,34 +611,17 @@ impl Act for Buffer {
 
 						TextInput::Char(ch) => {
 
-							if ch == 'y' {
-								if let Some(content) = self.read_line(self.cursor.line) {
-									self.clipboard.set_contents(content.clone()).unwrap();
-								}
-							}
-
-							if ch == 'h' {
-								self.move_left();
-							}
-
-							if ch == 'l' {
-								self.move_right();
-							}
-
-							if ch == 'j' {
-								self.move_down();
-							}
-
-							if ch == 'k' {
-								self.move_up();
-							}
-
-							if ch == 'u' {
-								self.pop();
-							}
-
-							if ch == 'd' {
-								self.del_line(self.cursor.line);
+							match ch {
+								'y' => self.copy_line(self.cursor.line),
+								'h' => self.move_left(),
+								'l' => self.move_right(),
+								'j' => self.move_down(),
+								'k' => self.move_up(),
+								'u' => self.undo(),
+								'd' => self.del_line(self.cursor.line),
+								'<' => self.move_line_start_insert(),
+								'>' => self.move_line_end_insert(),
+								_ => {},
 							}
 
 						},
@@ -497,11 +639,11 @@ impl Act for Buffer {
 						},
 
 						TextInput::Up => {
-							self.view_move_up();
+							self.scroll_up();
 						},
 
 						TextInput::Down => {
-							self.view_move_down();
+							self.scroll_down();
 						},
 
 						TextInput::Left => {
@@ -517,7 +659,7 @@ impl Act for Buffer {
 				}
 
 				if input::key_pressed(Key::Return) {
-					self.mode = Mode::Insert;
+					self.start_insert();
 				}
 
 				if input::key_pressed(Key::Tab) {
@@ -525,7 +667,7 @@ impl Act for Buffer {
 				}
 
 				if input::key_pressed(Key::Semicolon) {
-					self.mode = Mode::Command;
+					self.start_command();
 				}
 
 				if input::key_pressed(Key::W) {
@@ -538,11 +680,11 @@ impl Act for Buffer {
 
 						if scroll.y > 0 {
 							for _ in 0..scroll.y.abs() {
-								self.view_move_up();
+								self.scroll_up();
 							}
 						} else if scroll.y < 0 {
 							for _ in 0..scroll.y.abs() {
-								self.view_move_down();
+								self.scroll_down();
 							}
 						}
 
@@ -573,7 +715,7 @@ impl Act for Buffer {
 						TextInput::Char(ch) => {
 
 							if input::key_down(Key::LAlt) {
-								// ..
+								// ...
 							} else {
 								self.insert(ch);
 							}
@@ -583,9 +725,9 @@ impl Act for Buffer {
 						TextInput::Backspace => {
 
 							if input::key_down(Key::LAlt) {
-								// ..
+								self.del_word();
 							} else {
-								self.backspace();
+								self.del();
 							}
 
 						},
@@ -595,7 +737,7 @@ impl Act for Buffer {
 							if input::key_down(Key::LAlt) {
 								// ..
 							} else {
-								// ..
+								self.insert_line(self.cursor.line + 1);
 							}
 
 						},
@@ -605,19 +747,19 @@ impl Act for Buffer {
 						},
 
 						TextInput::Up => {
-							// ...
+							self.scroll_up();
 						},
 
 						TextInput::Down => {
-							// ...
+							self.scroll_down();
 						},
 
 						TextInput::Left => {
-							// ...
+							self.move_left();
 						},
 
 						TextInput::Right => {
-							// ...
+							self.move_right();
 						},
 
 					}
@@ -625,15 +767,15 @@ impl Act for Buffer {
 				}
 
 				if input::key_pressed(Key::Escape) {
-					self.mode = Mode::Normal;
+					self.start_normal();
 				}
 
 				if let Some(scroll) = input::scroll_delta() {
 
 					if scroll.y > 0 {
-						self.view_move_up();
+						self.scroll_up();
 					} else if scroll.y < 0 {
-						self.view_move_down();
+						self.scroll_down();
 					}
 
 				}
@@ -676,14 +818,16 @@ impl Act for Buffer {
 				}
 
 				if input::key_pressed(Key::Escape) {
-					self.mode = Mode::Normal;
+					self.start_normal();
 				}
 
-			}
+			},
+
+			Mode::Select => {
+				// ...
+			},
 
 		}
-
-		self.highlight();
 
 	}
 

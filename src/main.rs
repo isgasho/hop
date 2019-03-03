@@ -108,6 +108,7 @@ fn main() {
 	start(Browser::new(PathBuf::from("/Users/t/Things/hop")));
 
 	app::run(|| {
+		dbg!(app::fps());
 		update();
 		draw();
 	});
