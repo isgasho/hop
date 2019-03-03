@@ -23,8 +23,9 @@ pub struct Buffer {
 	path: String,
 	content: Vec<String>,
 	rendered: Vec<Vec<StyledWord>>,
-	redraw: bool,
 	start_line: u32,
+	syntax_set: SyntaxSet,
+	theme_set: ThemeSet,
 	font: g2d::Font,
 
 }
@@ -90,7 +91,8 @@ impl Buffer {
 			rendered: Vec::new(),
 			cursor: CurPos::new(1, 1),
 			start_line: 1,
-			redraw: false,
+			syntax_set: SyntaxSet::load_defaults_newlines(),
+			theme_set: ThemeSet::load_defaults(),
 			font: g2d::Font::new(
 				gfx::Texture::from_bytes(include_bytes!("res/proggy.png")),
 				95,
@@ -108,15 +110,12 @@ impl Buffer {
 
 	fn highlight(&mut self) {
 
-		let ps = SyntaxSet::load_defaults_newlines();
-		let ts = ThemeSet::load_defaults();
-
-		let syntax = ps.find_syntax_by_extension("rs").unwrap();
-		let mut h = HighlightLines::new(syntax, &ts.themes["base16-ocean.dark"]);
+		let syntax = self.syntax_set.find_syntax_by_extension("rs").unwrap();
+		let mut h = HighlightLines::new(syntax, &self.theme_set.themes["base16-ocean.dark"]);
 
 		self.rendered = self.content
 			.iter()
-			.map(|l| h.highlight(l, &ps))
+			.map(|l| h.highlight(l, &self.syntax_set))
 			.map(|v| v
 				.iter()
 				.map(|(sty, text)| {
@@ -186,19 +185,13 @@ impl Buffer {
 	fn write_line(&mut self, ln: u32, content: &str) {
 
 		if let Some(line) = self.content.get_mut(ln as usize - 1) {
-
 			*line = String::from(content);
-			self.redraw = true;
-
 		}
 
 	}
 
 	fn del_line(&mut self, ln: u32) {
-
 		self.content.remove(ln as usize - 1);
-		self.redraw = true;
-
 	}
 
 	fn view_move_down(&mut self) {
@@ -346,7 +339,6 @@ impl Buffer {
 			content.insert(cur.col as usize - 1, ch);
 			self.write_line(cur.line, &content);
 			cur.col += 1;
-			self.redraw = true;
 
 		}
 
@@ -570,12 +562,7 @@ impl Act for Buffer {
 
 		}
 
-		if self.redraw {
-
-			self.highlight();
-			self.redraw = false;
-
-		}
+		self.highlight();
 
 	}
 
