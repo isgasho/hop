@@ -108,9 +108,13 @@ fn main() {
 	start(Browser::new(PathBuf::from("/Users/t/Things/hop")));
 
 	app::run(|| {
-		dbg!(app::fps());
+
 		update();
 		draw();
+		g2d::reset();
+		g2d::translate(vec2!(12));
+		g2d::text(&format!("{}", app::fps()));
+
 	});
 
 }

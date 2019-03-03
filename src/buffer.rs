@@ -22,7 +22,6 @@ use crate::Browser;
 pub struct Buffer {
 
 	mode: Mode,
-	selections: Vec<(CurPos, CurPos)>,
 	cursor: CurPos,
 	path: String,
 	content: Vec<String>,
@@ -92,7 +91,12 @@ enum Mode {
 	Normal,
 	Insert,
 	Command,
-	Select,
+	Select(Vec<Selection>),
+}
+
+struct Selection {
+	start: CurPos,
+	end: CurPos,
 }
 
 #[derive(Debug, Clone)]
@@ -146,7 +150,6 @@ impl Buffer {
 		let mut buf = Self {
 
 			mode: Mode::Normal,
-			selections: Vec::new(),
 			path: path.to_owned(),
 			content: Vec::new(),
 			rendered: Vec::with_capacity(1024),
@@ -589,7 +592,17 @@ impl Buffer {
 			} else {
 
 				let mut content = line.clone();
-// 				let ch = content.
+
+				if let Some(ch) = self.get_char_at(CurPos::new(self.cursor.line, self.cursor.col - 1)) {
+
+					let nch = self.get_char_at(self.cursor);
+					let end_char = self.conf.wrapped_chars.get(&ch).map(Clone::clone);
+
+					if nch.is_some() && nch == end_char {
+						content.remove(cur.col as usize - 1);
+					}
+
+				}
 
 				content.remove(cur.col as usize - 2);
 				self.set_line(cur.line, &content);
@@ -600,6 +613,16 @@ impl Buffer {
 		}
 
 		self.cursor = cur;
+
+	}
+
+	fn get_char_at(&self, cur: CurPos) -> Option<char> {
+
+		if let Some(content) = self.get_line(cur.line) {
+			return content.chars().nth(cur.col as usize - 1);
+		} else {
+			return None;
+		}
 
 	}
 
@@ -841,7 +864,7 @@ impl Act for Buffer {
 
 			},
 
-			Mode::Select => {
+			Mode::Select(_) => {
 				// ...
 			},
 
