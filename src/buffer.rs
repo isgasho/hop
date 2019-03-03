@@ -46,6 +46,8 @@ pub struct Conf {
 	scroll_off: u32,
 	scale: f32,
 	wrapped_chars: HashMap<char, char>,
+	expand_tab: bool,
+	shift_width: u8,
 }
 
 impl Default for Conf {
@@ -64,6 +66,8 @@ impl Default for Conf {
 			scroll_off: 3,
 			scale: 1.5,
 			wrapped_chars: wrapped_chars,
+			expand_tab: false,
+			shift_width: 4,
 		};
 
 	}
@@ -498,7 +502,20 @@ impl Buffer {
 
 		let mut cur = self.cursor.clone();
 
-		// ...
+		if let Some(line) = self.get_line(cur.line) {
+
+			let mut index = 0;
+
+			for (i, ch) in line.chars().enumerate() {
+				if ch != '\t' && ch != ' ' {
+					index = i;
+					break;
+				}
+			}
+
+			cur.col = index as u32 + 1;
+
+		}
 
 		self.cursor = cur;
 
@@ -551,7 +568,7 @@ impl Buffer {
 		g2d::set_font(&self.font);
 
 		let (w, h) = window::size().into();
-		let rows = h as f32 / (g2d::text_height() as f32 * self.conf.scale);
+		let rows = h as f32 / (g2d::font_height() as f32 * self.conf.scale);
 
 		return rows as u32;
 
@@ -909,14 +926,14 @@ impl Act for Buffer {
 		g2d::set_font(&self.font);
 
 		let (w, h) = window::size().into();
-		let tw = g2d::text_width(" ");
-		let th = g2d::text_height();
+		let tw = g2d::font_width();
+		let th = g2d::font_height();
 
 		g2d::color(color!(0.10, 0.13, 0.17, 1));
 		g2d::rect(vec2!(w, h));
 
 		// viewport
-		g2d::translate(vec2!(8, (self.start_line - 1) as i32 * -1 * g2d::text_height() as i32));
+		g2d::translate(vec2!(8, (self.start_line - 1) as i32 * -1 * g2d::font_height() as i32));
 
 		// cursor
 		g2d::push();
@@ -945,12 +962,12 @@ impl Act for Buffer {
 
 				g2d::color(text.fg);
 				g2d::text(&text.text);
-				g2d::translate(vec2!(g2d::text_width(&text.text), 0));
+				g2d::translate(vec2!(g2d::font_width() * text.text.len() as u32, 0));
 
 			}
 
 			g2d::pop();
-			g2d::translate(vec2!(0, g2d::text_height()));
+			g2d::translate(vec2!(0, g2d::font_height()));
 
 		}
 
