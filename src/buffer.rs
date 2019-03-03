@@ -108,6 +108,16 @@ struct StyledWord {
 
 impl StyledWord {
 
+	fn from_plain(text: &str) -> Self {
+
+		return Self {
+			fg: color!(),
+			bg: color!(),
+			text: String::from(text),
+		};
+
+	}
+
 	fn from_syntect(def: &(Style, &str)) -> Self {
 
 		let sty = def.0;
@@ -178,29 +188,26 @@ impl Buffer {
 
 	fn highlight_line(&mut self, ln: u32) {
 
-		if let Some(syntax) = &self.syntax {
+		if let Some(content) = self.get_line(ln).map(Clone::clone) {
 
-			let mut h = HighlightLines::new(&syntax, &self.theme_set.themes["base16-ocean.dark"]);
+			if let Some(s) = self.rendered.get_mut(ln as usize - 1) {
 
-			if let Some(content) = self.get_line(ln).map(Clone::clone) {
+				if let Some(syntax) = &self.syntax {
 
-				if let Some(s) = self.rendered.get_mut(ln as usize - 1) {
+					let mut h = HighlightLines::new(&syntax, &self.theme_set.themes["base16-ocean.dark"]);
 
 					*s = h.highlight(&content, &self.syntax_set)
 						.iter()
 						.map(StyledWord::from_syntect)
 						.collect();
 
+				} else {
+
+					*s = vec![StyledWord::from_plain(&content)];
+
 				}
 
 			}
-
-		} else {
-
-// 			self.rendered = self.content
-// 				.iter()
-// 				.collect();
-
 
 		}
 
@@ -221,7 +228,12 @@ impl Buffer {
 				.collect();
 
 		} else {
-			// ...
+
+			self.rendered = self.content
+				.iter()
+				.map(|l| vec![StyledWord::from_plain(l)])
+				.collect();
+
 		}
 
 	}
@@ -569,6 +581,23 @@ impl Buffer {
 
 	}
 
+	fn break_line(&mut self, cur: CurPos) {
+
+		self.insert_line(cur.line + 1);
+
+		if let Some(line) = self.get_line(cur.line).map(Clone::clone) {
+
+			let before = &line[0..cur.col as usize - 1];
+			let after = &line[cur.col as usize - 1..line.len()];
+
+			self.set_line(cur.line, before);
+			self.set_line(cur.line + 1, after);
+
+		}
+
+
+	}
+
 	fn del(&mut self) {
 
 		let mut cur = self.cursor.clone();
@@ -579,13 +608,15 @@ impl Buffer {
 
 			if before.is_empty() {
 
-				if let Some(prev_line) = self.get_line(cur.line - 1) {
+				if let Some(prev_line) = self.get_line(cur.line - 1).map(Clone::clone) {
 
 					let mut content = prev_line.clone();
 
 					content.push_str(line);
 					self.del_line(cur.line);
 					self.set_line(cur.line - 1, &content);
+					cur.line -= 1;
+					cur.col = prev_line.len() as u32 + 1;
 
 				}
 
@@ -778,7 +809,7 @@ impl Act for Buffer {
 							if input::key_down(Key::LAlt) {
 								// ..
 							} else {
-								self.insert_line(self.cursor.line + 1);
+								self.break_line(self.cursor);
 							}
 
 						},
