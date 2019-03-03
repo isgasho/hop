@@ -22,8 +22,9 @@ pub struct Buffer {
 	cursor: CurPos,
 	path: String,
 	content: Vec<String>,
-	rendered: Vec<Vec<(WordStyle, String)>>,
+	rendered: Vec<Vec<StyledWord>>,
 	redraw: bool,
+	start_line: u32,
 	font: g2d::Font,
 
 }
@@ -69,39 +70,11 @@ enum Mode {
 	Command,
 }
 
-struct WordStyle {
+#[derive(Debug, Clone)]
+struct StyledWord {
 	fg: Color,
 	bg: Color,
-}
-
-impl WordStyle {
-
-	fn from_syntect_style(sty: &Style) -> Self {
-
-		let fg = sty.foreground;
-		let bg = sty.background;
-
-		let fg = color!(
-			fg.r as f32 / 255.0,
-			fg.g as f32 / 255.0,
-			fg.b as f32 / 255.0,
-			fg.a as f32 / 255.0
-		);
-
-		let bg = color!(
-			bg.r as f32 / 255.0,
-			bg.g as f32 / 255.0,
-			bg.b as f32 / 255.0,
-			bg.a as f32 / 255.0
-		);
-
-		return Self {
-			fg: fg,
-			bg: bg,
-		};
-
-	}
-
+	text: String,
 }
 
 impl Buffer {
@@ -116,6 +89,7 @@ impl Buffer {
 			content: Vec::new(),
 			rendered: Vec::new(),
 			cursor: CurPos::new(1, 1),
+			start_line: 1,
 			redraw: false,
 			font: g2d::Font::new(
 				gfx::Texture::from_bytes(include_bytes!("res/proggy.png")),
@@ -144,9 +118,34 @@ impl Buffer {
 			.iter()
 			.map(|l| h.highlight(l, &ps))
 			.map(|v| v
-				 .iter()
-				 .map(|(sty, text)| (WordStyle::from_syntect_style(sty), String::from(*text)))
-				 .collect())
+				.iter()
+				.map(|(sty, text)| {
+
+					let fg = sty.foreground;
+					let bg = sty.background;
+
+					let fg = color!(
+						fg.r as f32 / 255.0,
+						fg.g as f32 / 255.0,
+						fg.b as f32 / 255.0,
+						fg.a as f32 / 255.0
+					);
+
+					let bg = color!(
+						bg.r as f32 / 255.0,
+						bg.g as f32 / 255.0,
+						bg.b as f32 / 255.0,
+						bg.a as f32 / 255.0
+					);
+
+					return StyledWord {
+						fg: fg,
+						bg: bg,
+						text: String::from(*text),
+					}
+
+				})
+				.collect())
 			.collect();
 
 	}
@@ -199,6 +198,24 @@ impl Buffer {
 
 		self.content.remove(ln as usize - 1);
 		self.redraw = true;
+
+	}
+
+	fn view_move_down(&mut self) {
+
+		if self.start_line < self.content.len() as u32 {
+			if self.cursor.line - self.start_line >= 3 {
+				self.start_line += 1;
+			}
+		}
+
+	}
+
+	fn view_move_up(&mut self) {
+
+		if self.start_line > 1 {
+			self.start_line -= 1;
+		}
 
 	}
 
@@ -303,31 +320,6 @@ impl Buffer {
 
 	}
 
-	fn draw_text(&self) {
-
-		g2d::push();
-
-		for line in &self.rendered {
-
-			g2d::push();
-
-			for (style, text) in line {
-
-				g2d::color(style.fg);
-				g2d::text(&text);
-				g2d::translate(vec2!(g2d::text_width(text), 0));
-
-			}
-
-			g2d::pop();
-			g2d::translate(vec2!(0, g2d::text_height()));
-
-		}
-
-		g2d::pop();
-
-	}
-
 	fn start_browser(&self) {
 
 		let path = PathBuf::from(&self.path);
@@ -408,6 +400,62 @@ impl Act for Buffer {
 
 			Mode::Normal => {
 
+				if let Some(i) = input::text_input() {
+
+					match i {
+
+						TextInput::Char(ch) => {
+
+							if ch == 'h' {
+								self.move_left();
+							}
+
+							if ch == 'l' {
+								self.move_right();
+							}
+
+							if ch == 'j' {
+								self.move_down();
+							}
+
+							if ch == 'k' {
+								self.move_up();
+							}
+
+						},
+
+						TextInput::Backspace => {
+							// ...
+						},
+
+						TextInput::Return => {
+							// ...
+						},
+
+						TextInput::Tab => {
+							// ...
+						},
+
+						TextInput::Up => {
+							self.view_move_up();
+						},
+
+						TextInput::Down => {
+							self.view_move_down();
+						},
+
+						TextInput::Left => {
+							// ...
+						},
+
+						TextInput::Right => {
+							// ...
+						},
+
+					}
+
+				}
+
 				if input::key_pressed(Key::Return) {
 					self.mode = Mode::Insert;
 				}
@@ -418,22 +466,6 @@ impl Act for Buffer {
 
 				if input::key_pressed(Key::Semicolon) {
 					self.mode = Mode::Command;
-				}
-
-				if input::key_pressed(Key::H) {
-					self.move_left();
-				}
-
-				if input::key_pressed(Key::L) {
-					self.move_right();
-				}
-
-				if input::key_pressed(Key::J) {
-					self.move_down();
-				}
-
-				if input::key_pressed(Key::K) {
-					self.move_up();
 				}
 
 				if input::key_pressed(Key::W) {
@@ -465,6 +497,21 @@ impl Act for Buffer {
 						TextInput::Return => {
 							// ...
 						},
+						TextInput::Tab => {
+							self.insert('\t');
+						},
+						TextInput::Up => {
+							// ...
+						},
+						TextInput::Down => {
+							// ...
+						},
+						TextInput::Left => {
+							// ...
+						},
+						TextInput::Right => {
+							// ...
+						},
 
 					}
 
@@ -493,6 +540,21 @@ impl Act for Buffer {
 							// ...
 						},
 						TextInput::Return => {
+							// ...
+						},
+						TextInput::Tab => {
+							// ...
+						},
+						TextInput::Up => {
+							// ...
+						},
+						TextInput::Down => {
+							// ...
+						},
+						TextInput::Left => {
+							// ...
+						},
+						TextInput::Right => {
 							// ...
 						},
 
@@ -527,15 +589,36 @@ impl Act for Buffer {
 		g2d::color(color!(0.10, 0.13, 0.17, 1));
 		g2d::rect(vec2!(w, h));
 
-		g2d::translate(vec2!(16));
-		self.draw_text();
+		g2d::translate(vec2!(8, (self.start_line - 1) as i32 * -1 * g2d::text_height() as i32));
+
+		g2d::push();
+
+		for line in &self.rendered {
+
+			g2d::push();
+
+			for text in line {
+
+				g2d::color(text.fg);
+				g2d::text(&text.text);
+				g2d::translate(vec2!(g2d::text_width(&text.text), 0));
+
+			}
+
+			g2d::pop();
+			g2d::translate(vec2!(0, g2d::text_height()));
+
+		}
+
+		g2d::pop();
+
 		g2d::translate(vec2!(-3, 0));
 
 		let w = g2d::text_width(" ");
 		let h = g2d::text_height();
 
 		g2d::push();
-		g2d::translate(vec2!(2, 1));
+		g2d::translate(vec2!(3, 1));
 		g2d::translate(vec2!((self.cursor.col - 1) * w, (self.cursor.line - 1) * h));
 		g2d::color(color!(1, 1, 1, 0.5));
 
