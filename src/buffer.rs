@@ -82,6 +82,11 @@ impl Default for Conf {
 		break_chars.insert('.');
 		break_chars.insert(';');
 		break_chars.insert(':');
+		break_chars.insert('"');
+		break_chars.insert('(');
+		break_chars.insert('{');
+		break_chars.insert('[');
+		break_chars.insert('\'');
 
 		return Self {
 			scroll_off: 3,
@@ -313,9 +318,21 @@ impl Buffer {
 
 	fn set_line(&mut self, ln: u32, content: &str) {
 
-		if self.content.get(ln as usize - 1).is_some() {
+		if let Some(line) = self.content.get_mut(ln as usize - 1) {
 
-			self.content[ln as usize - 1] = String::from(content);
+			*line = String::from(content);
+			self.highlight_line(ln);
+			self.modified = true;
+
+		}
+
+	}
+
+	fn push_line(&mut self, ln: u32, content: &str) {
+
+		if let Some(line) = self.content.get_mut(ln as usize - 1) {
+
+			line.push_str(content);
 			self.highlight_line(ln);
 			self.modified = true;
 
@@ -573,6 +590,8 @@ impl Buffer {
 				if ch != '\t' && ch != ' ' {
 					index = i;
 					break;
+				} else if i == line.len() - 1 {
+					index = i + 1;
 				}
 			}
 
@@ -672,14 +691,22 @@ impl Buffer {
 
 		if let Some(line) = self.get_line(cur.line).map(Clone::clone) {
 
-			let before = &line[0..cur.col as usize - 1];
-			let after = &line[cur.col as usize - 1..line.len()];
+			let before = String::from(&line[0..cur.col as usize - 1]);
+			let mut after = String::from(&line[cur.col as usize - 1..line.len()]);
 
-			self.set_line(cur.line, before);
-			self.set_line(cur.line + 1, after);
+			if let Some(indents) = self.get_indents(cur.line) {
+
+				for _ in 0..indents {
+					after.insert(0, '\t');
+				}
+
+			}
+
+			self.set_line(cur.line, &before);
+			self.set_line(cur.line + 1, &after);
+			self.move_line_start();
 
 		}
-
 
 	}
 
@@ -820,7 +847,7 @@ impl Act for Buffer {
 							match ch {
 								'y' => self.copy_line(self.cursor.line),
 								'h' => self.move_left(),
-								'l' => self.move_next_word(),
+								'l' => self.move_right(),
 								'j' => self.move_down(),
 								'k' => self.move_up(),
 								'u' => self.undo(),
@@ -1096,4 +1123,3 @@ impl Act for Buffer {
 	}
 
 }
-
