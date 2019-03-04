@@ -27,7 +27,7 @@ pub struct Buffer {
 	cursor: Pos,
 	path: String,
 	content: Vec<String>,
-	rendered: Vec<Vec<RenderedWord>>,
+	rendered: Vec<Vec<RenderedChunk>>,
 	start_line: u32,
 	syntax_set: SyntaxSet,
 	syntax: Option<SyntaxReference>,
@@ -41,11 +41,6 @@ pub struct Buffer {
 
 }
 
-struct RenderedLine {
-	indent: u32,
-	words: Vec<RenderedWord>,
-}
-
 #[derive(Debug, Clone)]
 struct State {
 	content: Vec<String>,
@@ -53,6 +48,17 @@ struct State {
 	modified: bool,
 }
 
+#[derive(Debug, Clone)]
+enum RenderedChunk {
+	Text {
+		fg: Color,
+		bg: Color,
+		text: String,
+	},
+	Tab,
+}
+
+#[derive(Debug, Clone)]
 pub struct Conf {
 	scroll_off: u32,
 	scale: f32,
@@ -131,18 +137,11 @@ struct Range {
 	end: Pos,
 }
 
-#[derive(Debug, Clone)]
-struct RenderedWord {
-	fg: Color,
-	bg: Color,
-	text: String,
-}
-
-impl RenderedWord {
+impl RenderedChunk {
 
 	fn from_plain(text: &str) -> Self {
 
-		return Self {
+		return RenderedChunk::Text {
 			fg: color!(),
 			bg: color!(),
 			text: String::from(text),
@@ -171,7 +170,7 @@ impl RenderedWord {
 			bg.a as f32 / 255.0
 		);
 
-		return Self {
+		return RenderedChunk::Text {
 
 			fg: fg,
 			bg: bg,
@@ -219,7 +218,6 @@ impl Buffer {
 		};
 
 		buf.read();
-		buf.push();
 
 		return Ok(buf);
 
@@ -237,12 +235,12 @@ impl Buffer {
 
 					*s = h.highlight(&content, &self.syntax_set)
 						.iter()
-						.map(RenderedWord::from_syntect)
+						.map(RenderedChunk::from_syntect)
 						.collect();
 
 				} else {
 
-					*s = vec![RenderedWord::from_plain(&content)];
+					*s = vec![RenderedChunk::from_plain(&content)];
 
 				}
 
@@ -262,7 +260,7 @@ impl Buffer {
 				.iter()
 				.map(|l| h.highlight(l, &self.syntax_set))
 				.map(|v| v.iter()
-					 .map(RenderedWord::from_syntect)
+					 .map(RenderedChunk::from_syntect)
 					 .collect())
 				.collect();
 
@@ -270,7 +268,7 @@ impl Buffer {
 
 			self.rendered = self.content
 				.iter()
-				.map(|l| vec![RenderedWord::from_plain(l)])
+				.map(|l| vec![RenderedChunk::from_plain(l)])
 				.collect();
 
 		}
@@ -488,8 +486,12 @@ impl Buffer {
 		let top = self.cursor.line - self.conf.scroll_off;
 		let bottom = self.cursor.line - self.get_view_rows() + self.conf.scroll_off;
 
-		if self.start_line > top && top > 0 {
-			self.start_line = top;
+		if self.start_line > top {
+			if top > 0 {
+				self.start_line = top;
+			} else {
+				self.start_line = 1;
+			}
 		}
 
 		if self.start_line < bottom && bottom < self.content.len() as u32 {
@@ -1105,11 +1107,22 @@ impl Act for Buffer {
 
 			g2d::push();
 
-			for text in line {
+			for chunk in line {
 
-				g2d::color(text.fg);
-				g2d::text(&text.text);
-				g2d::translate(vec2!(g2d::font_width() * text.text.len() as u32, 0));
+				match chunk {
+
+					RenderedChunk::Text { fg, bg, text, } => {
+
+						g2d::color(*fg);
+						g2d::text(&text);
+						g2d::translate(vec2!(g2d::font_width() * text.len() as u32, 0));
+
+					},
+
+					RenderedChunk::Tab => {},
+
+				}
+
 
 			}
 
