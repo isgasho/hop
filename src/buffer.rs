@@ -57,6 +57,7 @@ pub struct Conf {
 	wrapped_chars: HashMap<char, char>,
 	expand_tab: bool,
 	shift_width: u8,
+	line_space: i32,
 }
 
 impl Default for Conf {
@@ -77,6 +78,7 @@ impl Default for Conf {
 			wrapped_chars: wrapped_chars,
 			expand_tab: false,
 			shift_width: 4,
+			line_space: 2,
 		};
 
 	}
@@ -163,9 +165,13 @@ impl RenderedWord {
 	}
 }
 
+pub enum Error {
+	IO,
+}
+
 impl Buffer {
 
-	pub fn new(path: &str) -> Self {
+	pub fn from_file(path: &str) -> Result<Self, Error> {
 
 		let syntax_set = SyntaxSet::load_defaults_newlines();
 		let syntax = syntax_set.find_syntax_by_extension("rs").map(Clone::clone);
@@ -197,7 +203,7 @@ impl Buffer {
 
 		buf.read();
 
-		return buf;
+		return Ok(buf);
 
 	}
 
@@ -253,7 +259,7 @@ impl Buffer {
 
 	}
 
-	fn read(&mut self) {
+	fn read(&mut self) -> Result<(), Error> {
 
 		if let Ok(content) = fs::read_to_string(&self.path) {
 
@@ -264,9 +270,11 @@ impl Buffer {
 
 			self.highlight_all();
 
+			return Ok(());
+
 		} else {
 
-			unimplemented!("dialog error (failed to read file)");
+			return Err(Error::IO);
 
 		}
 
@@ -308,6 +316,7 @@ impl Buffer {
 		self.push();
 		self.content.remove(ln as usize - 1);
 		self.rendered.remove(ln as usize - 1);
+		self.move_up();
 		self.modified = true;
 
 	}
@@ -372,7 +381,45 @@ impl Buffer {
 
 	}
 
-	fn move_to(&mut self, pos: Pos) {
+	fn move_to(&mut self, mut pos: Pos) {
+
+		if pos.col < 1 {
+			return self.move_to(Pos {
+				col: 1,
+				.. pos
+			});
+		}
+
+		if pos.line < 1 {
+			return self.move_to(Pos {
+				line: 1,
+				.. pos
+			});
+		}
+
+		if let Some(line) = self.get_line(pos.line) {
+
+			let len = line.len() as u32 + 1;
+
+			if pos.col > len {
+
+				return self.move_to(Pos {
+					col: len,
+					.. pos
+				});
+
+			}
+
+		}
+
+		let lines = self.content.len() as u32;
+
+		if pos.line > lines && lines > 0 {
+			return self.move_to(Pos {
+				line: lines,
+				.. pos
+			});
+		}
 
 		self.cursor = pos;
 
@@ -391,89 +438,37 @@ impl Buffer {
 
 	fn move_left(&mut self) {
 
-		let mut pos = self.cursor.clone();
-
-		if pos.col > 1 {
-			pos.col -= 1;
-		}
-
-		self.move_to(pos);
+		self.move_to(Pos {
+			col: self.cursor.col - 1,
+			.. self.cursor
+		});
 
 	}
 
 	fn move_right(&mut self) {
 
-		let mut pos = self.cursor.clone();
-
-		if let Some(line) = self.get_line(pos.line) {
-
-			let len;
-
-			if let Mode::Insert = self.mode {
-				len = line.len() + 1;
-			} else {
-				len = line.len()
-			}
-
-			if pos.col < len as u32 {
-				pos.col += 1;
-			}
-
-		}
-
-		self.move_to(pos);
+		self.move_to(Pos {
+			col: self.cursor.col + 1,
+			.. self.cursor
+		});
 
 	}
 
 	fn move_up(&mut self) {
 
-		let mut pos = self.cursor.clone();
-
-		if self.get_line(pos.line).is_some() {
-
-			if let Some(prev_line) = self.get_line(pos.line - 1) {
-
-				pos.line -= 1;
-
-				if prev_line.is_empty() {
-					pos.col = 1;
-				} else {
-					if pos.col as usize > prev_line.len() {
-						pos.col = prev_line.len() as u32;
-					}
-				}
-
-			}
-
-		}
-
-		self.move_to(pos);
+		self.move_to(Pos {
+			line: self.cursor.line - 1,
+			.. self.cursor
+		});
 
 	}
 
 	fn move_down(&mut self) {
 
-		let mut pos = self.cursor.clone();
-
-		if self.get_line(pos.line).is_some() {
-
-			if let Some(next_line) = self.get_line(pos.line + 1) {
-
-				pos.line += 1;
-
-				if next_line.is_empty() {
-					pos.col = 1;
-				} else {
-					if pos.col as usize > next_line.len() {
-						pos.col = next_line.len() as u32;
-					}
-				}
-
-			}
-
-		}
-
-		self.move_to(pos);
+		self.move_to(Pos {
+			line: self.cursor.line + 1,
+			.. self.cursor
+		});
 
 	}
 
@@ -587,7 +582,7 @@ impl Buffer {
 		g2d::set_font(&self.font);
 
 		let (w, h) = window::size().into();
-		let rows = h as f32 / (g2d::font_height() as f32 * self.conf.scale);
+		let rows = h as f32 / ((g2d::font_height() as i32 + self.conf.line_space) as f32 * self.conf.scale);
 
 		return rows as u32;
 
@@ -998,18 +993,18 @@ impl Act for Buffer {
 
 		let (w, h) = window::size().into();
 		let tw = g2d::font_width();
-		let th = g2d::font_height();
+		let th = g2d::font_height() as i32 + self.conf.line_space;
 
 		g2d::color(color!(0.10, 0.13, 0.17, 1));
 		g2d::rect(vec2!(w, h));
 
 		// viewport
-		g2d::translate(vec2!(8, (self.start_line as i32 - 1) * -1 * g2d::font_height() as i32));
+		g2d::translate(vec2!(8, (self.start_line as i32 - 1) * -1 * th as i32));
 
 		// cursor
 		g2d::push();
 		g2d::color(color!(0.15, 0.18, 0.22, 1));
-		g2d::translate(vec2!(0, (self.cursor.line - 1) * th));
+		g2d::translate(vec2!(0, (self.cursor.line - 1) as i32 * th));
 		g2d::rect(vec2!(w, th));
 		g2d::translate(vec2!((self.cursor.col - 1) * tw, 0));
 		g2d::color(color!(0.84));
@@ -1038,7 +1033,7 @@ impl Act for Buffer {
 			}
 
 			g2d::pop();
-			g2d::translate(vec2!(0, g2d::font_height()));
+			g2d::translate(vec2!(0, th));
 
 		}
 

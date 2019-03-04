@@ -3,6 +3,7 @@
 use std::fs;
 use std::path::PathBuf;
 use std::ffi::OsStr;
+use std::collections::HashMap;
 
 use dirty::*;
 use input::Key;
@@ -11,6 +12,7 @@ use crate::Buffer;
 use crate::Act;
 
 pub struct Browser {
+
 	listings: Vec<Item>,
 	path: PathBuf,
 	conf: Conf,
@@ -22,6 +24,9 @@ pub struct Browser {
 	selection_tex: gfx::Texture,
 	back_tex: gfx::Texture,
 	image_tex: gfx::Texture,
+	previewing: bool,
+	previewed_images: HashMap<PathBuf, gfx::Texture>,
+
 }
 
 pub struct Conf {
@@ -37,6 +42,7 @@ enum ItemType {
 	Folder,
 	Text,
 	Image,
+	Music,
 }
 
 pub enum Error {
@@ -97,6 +103,8 @@ impl Browser {
 			image_tex: gfx::Texture::from_bytes(include_bytes!("res/image.png")),
 			back_tex: gfx::Texture::from_bytes(include_bytes!("res/back.png")),
 			selection_tex: gfx::Texture::from_bytes(include_bytes!("res/selection.png")),
+			previewing: false,
+			previewed_images: HashMap::new(),
 			font: g2d::Font::new(
 				gfx::Texture::from_bytes(crate::FONT),
 				crate::FONT_COLS,
@@ -175,8 +183,9 @@ impl Browser {
 					if let ItemType::Folder = item.kind {
 						self.cd(item.path.clone());
 					} else if let ItemType::Text = item.kind {
-						let buffer = Buffer::new(&pathbuf_to_str(&item.path));
-						crate::start(buffer);
+						if let Ok(buf) = Buffer::from_file(&pathbuf_to_str(&item.path)) {
+							crate::start(buf);
+						}
 					}
 				}
 
@@ -216,9 +225,11 @@ impl Browser {
 	}
 
 	fn select_index(&mut self, i: usize) {
+
 		if self.listings.get(i).is_some() {
 			self.selection = Selection::Item(i);
 		}
+
 	}
 
 	fn refresh(&mut self) {
@@ -285,8 +296,11 @@ impl Browser {
 	}
 
 	fn mkfile(&mut self, name: &str) {
-		let buffer = Buffer::new(name);
-		crate::start(buffer);
+		// ...
+	}
+
+	fn toggle_preview(&mut self) {
+		self.previewing = !self.previewing;
 	}
 
 }
@@ -307,8 +321,26 @@ impl Act for Browser {
 			self.move_down();
 		}
 
+		if input::key_pressed(Key::Space) {
+			self.toggle_preview();
+		}
+
 		if input::key_pressed(Key::K) {
 			self.move_up();
+		}
+
+		if self.previewing {
+
+			if let Some(item) = self.selected() {
+
+				if let ItemType::Image = item.kind {
+					if !self.previewed_images.contains_key(&item.path) {
+						self.previewed_images.insert(item.path.clone(), gfx::Texture::from_file(&pathbuf_to_str(&item.path)));
+					}
+				}
+
+			}
+
 		}
 
 	}
@@ -319,6 +351,7 @@ impl Act for Browser {
 		let cols = 4;
 		let size = 108;
 
+		// all
 		g2d::scale(vec2!(2));
 		g2d::set_font(&self.font);
 
@@ -382,6 +415,38 @@ impl Act for Browser {
 			g2d::scale(vec2!((app::time() * 6.0).sin() * 0.02 + 1.0));
 			g2d::draw(&self.selection_tex, rect!(0, 0, 1, 1));
 			g2d::pop();
+
+		}
+
+		g2d::pop();
+
+		// preview
+		if self.previewing {
+
+			if let Some(item) = self.selected() {
+
+				g2d::push();
+				g2d::color(color!(0, 0, 0, 0.7));
+				g2d::rect(vec2!(w, h));
+				g2d::pop();
+
+				if let ItemType::Image = item.kind {
+
+					if let Some(tex) = self.previewed_images.get(&item.path) {
+
+						let tw = tex.width();
+						let th = tex.height();
+
+						g2d::push();
+						g2d::translate((vec2!(w, h) / 2.0 - vec2!(tw, th)) / 2.0);
+						g2d::draw(tex, rect!(0, 0, 1, 1));
+						g2d::pop();
+
+					}
+
+				}
+
+			}
 
 		}
 
