@@ -31,9 +31,11 @@ pub struct Buffer {
 	syntax_set: SyntaxSet,
 	syntax: Option<SyntaxReference>,
 	theme_set: ThemeSet,
-	history: Vec<State>,
+	undo_stack: Vec<State>,
+	redo_stack: Vec<State>,
 	clipboard: ClipboardContext,
 	font: g2d::Font,
+	modified: bool,
 	conf: Conf,
 
 }
@@ -46,6 +48,7 @@ struct RenderedLine {
 struct State {
 	content: Vec<String>,
 	cursor: Pos,
+	modified: bool,
 }
 
 pub struct Conf {
@@ -179,7 +182,9 @@ impl Buffer {
 			syntax: syntax,
 			theme_set: ThemeSet::load_defaults(),
 			conf: Conf::default(),
-			history: Vec::new(),
+			undo_stack: Vec::new(),
+			redo_stack: Vec::new(),
+			modified: false,
 			clipboard: ClipboardProvider::new().unwrap(),
 			font: g2d::Font::new(
 				gfx::Texture::from_bytes(crate::FONT),
@@ -277,15 +282,23 @@ impl Buffer {
 
 	}
 
+	fn modified(&self) -> bool {
+		return self.modified;
+	}
+
 	fn get_line(&self, ln: u32) -> Option<&String> {
 		return self.content.get(ln as usize - 1);
 	}
 
 	fn set_line(&mut self, ln: u32, content: &str) {
 
-		if let Some(line) = self.content.get_mut(ln as usize - 1) {
-			*line = String::from(content);
+		if self.content.get(ln as usize - 1).is_some() {
+
+			self.push();
+			self.content[ln as usize - 1] = String::from(content);
 			self.highlight_line(ln);
+			self.modified = true;
+
 		}
 
 	}
@@ -295,6 +308,7 @@ impl Buffer {
 		self.push();
 		self.content.remove(ln as usize - 1);
 		self.rendered.remove(ln as usize - 1);
+		self.modified = true;
 
 	}
 
@@ -303,6 +317,7 @@ impl Buffer {
 		self.push();
 		self.content.insert(ln as usize - 1, String::new());
 		self.rendered.insert(ln as usize - 1, Vec::new());
+		self.modified = true;
 		self.move_down();
 
 	}
@@ -317,16 +332,17 @@ impl Buffer {
 
 	fn push(&mut self) {
 
-		self.history.push(State {
+		self.undo_stack.push(State {
 			content: self.content.clone(),
 			cursor: self.cursor.clone(),
+			modified: self.modified,
 		});
 
 	}
 
 	fn undo(&mut self) {
 
-		if let Some(state) = self.history.pop() {
+		if let Some(state) = self.undo_stack.pop() {
 
 			self.content = state.content;
 			self.move_to(state.cursor);
@@ -666,9 +682,9 @@ impl Buffer {
 
 				let mut content = line.clone();
 
-				if let Some(ch) = self.get_char_at(Pos::new(self.cursor.line, self.cursor.col - 1)) {
+				if let Some(ch) = self.char_at(Pos::new(self.cursor.line, self.cursor.col - 1)) {
 
-					let nch = self.get_char_at(self.cursor);
+					let nch = self.char_at(self.cursor);
 					let end_char = self.conf.wrapped_chars.get(&ch).map(Clone::clone);
 
 					if nch.is_some() && nch == end_char {
@@ -689,7 +705,7 @@ impl Buffer {
 
 	}
 
-	fn get_char_at(&self, pos: Pos) -> Option<char> {
+	fn char_at(&self, pos: Pos) -> Option<char> {
 
 		if let Some(content) = self.get_line(pos.line) {
 			return content.chars().nth(pos.col as usize - 1);

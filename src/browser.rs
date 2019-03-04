@@ -11,12 +11,15 @@ use crate::Buffer;
 use crate::Act;
 
 pub struct Browser {
-	listings: Vec<PathBuf>,
+	listings: Vec<Item>,
 	path: PathBuf,
 	conf: Conf,
 	selection: Selection,
 	markings: Vec<usize>,
 	font: g2d::Font,
+	text_tex: gfx::Texture,
+	folder_tex: gfx::Texture,
+	selection_tex: gfx::Texture,
 }
 
 pub struct Conf {
@@ -29,7 +32,7 @@ struct Item {
 }
 
 enum ItemType {
-	Dir,
+	Folder,
 	Text,
 	Image,
 }
@@ -87,6 +90,9 @@ impl Browser {
 			conf: Conf::default(),
 			selection: Selection::Back,
 			markings: Vec::new(),
+			text_tex: gfx::Texture::from_bytes(include_bytes!("res/text.png")),
+			folder_tex: gfx::Texture::from_bytes(include_bytes!("res/folder.png")),
+			selection_tex: gfx::Texture::from_bytes(include_bytes!("res/selection.png")),
 			font: g2d::Font::new(
 				gfx::Texture::from_bytes(crate::FONT),
 				crate::FONT_COLS,
@@ -122,8 +128,8 @@ impl Browser {
 
 		let mut index = None;
 
-		for (i, p) in self.listings.iter().enumerate() {
-			if p == path {
+		for (i, item) in self.listings.iter().enumerate() {
+			if &item.path == path {
 				index = Some(i);
 			}
 		}
@@ -152,11 +158,11 @@ impl Browser {
 
 			Selection::Item(i) => {
 
-				if let Some(path) = self.listings.get(i) {
-					if path.is_dir() {
-						self.cd(path.clone());
-					} else if path.is_file() {
-						let buffer = Buffer::new(&pathbuf_to_str(path));
+				if let Some(item) = self.listings.get(i) {
+					if let ItemType::Folder = item.kind {
+						self.cd(item.path.clone());
+					} else if let ItemType::Text = item.kind {
+						let buffer = Buffer::new(&pathbuf_to_str(&item.path));
 						crate::start(buffer);
 					}
 				}
@@ -218,17 +224,23 @@ impl Browser {
 				if !self.conf.ignores.check(&get_fname(&p)) {
 
 					if p.is_dir() {
-						dirs.push(p);
+						dirs.push(Item {
+							path: p,
+							kind: ItemType::Folder,
+						});
 					} else if p.is_file() {
-						files.push(p);
+						files.push(Item {
+							path: p,
+							kind: ItemType::Text,
+						});
 					}
 
 				}
 
 			}
 
-			dirs.sort();
-			files.sort();
+// 			dirs.sort();
+// 			files.sort();
 
 			self.listings.append(&mut dirs);
 			self.listings.append(&mut files);
@@ -285,61 +297,58 @@ impl Act for Browser {
 	fn draw(&self) {
 
 		let (w, h) = window::size().into();
+		let cols = 4;
+		let size = 96;
 
-		g2d::scale(vec2!(1.5));
+		g2d::scale(vec2!(2));
 		g2d::set_font(&self.font);
 
-		g2d::color(color!(0.10, 0.13, 0.17, 1));
+		// background
+		g2d::push();
+		g2d::color(color!(0.48, 1, 1, 1));
 		g2d::rect(vec2!(w, h));
+		g2d::pop();
 
 		g2d::push();
-		g2d::translate(vec2!(16));
+		g2d::translate(vec2!(24));
 
-		g2d::color(color!(0.98, 0.78, 0.39, 1));
-		g2d::text("..");
-		g2d::translate(vec2!(0, 24));
+		for (i, item) in self.listings.iter().enumerate() {
 
-		for path in &self.listings {
+			let x = i % cols;
+			let y = i / cols;
 
-			let name = get_fname(path);
+			g2d::push();
+			g2d::translate(vec2!(x, y) * size as f32);
 
-			if path.is_dir() {
+			let name = get_fname(&item.path);
 
-				g2d::color(color!(0.38, 0.7, 0.7, 1));
-				g2d::text("+");
-				g2d::push();
-				g2d::translate(vec2!(16, 0));
-				g2d::color(color!(0.4, 0.6, 0.8, 1));
-				g2d::text(&format!("{}", name));
-				g2d::pop();
+			match item.kind {
 
-			} else {
-
-				g2d::push();
-				g2d::translate(vec2!(16, 0));
-				g2d::color(color!());
-				g2d::text(&format!("{}", name));
-				g2d::pop();
+				ItemType::Folder => g2d::draw(&self.folder_tex, rect!(0, 0, 1, 1)),
+				ItemType::Text => g2d::draw(&self.text_tex, rect!(0, 0, 1, 1)),
+				_ => {},
 
 			}
 
-			g2d::translate(vec2!(0, 24));
+			g2d::color(color!(0, 0, 0, 1));
+			g2d::translate(vec2!(12, 48));
+			g2d::text(&name);
+			g2d::pop();
 
 		}
 
-		g2d::pop();
-		g2d::translate(vec2!(0, 12));
+		if let Selection::Item(i) = self.selection {
 
-		match self.selection {
-			Selection::Back => {
-			},
-			Selection::Item(i) => {
-				g2d::translate(vec2!(0, (i + 1) * 24));
-			}
+			let x = i % cols;
+			let y = i / cols;
+
+			g2d::push();
+			g2d::translate(vec2!(x, y) * size as f32 - vec2!(22));
+			g2d::scale(vec2!((app::time() * 6.0).sin() * 0.02 + 1.0));
+			g2d::draw(&self.selection_tex, rect!(0, 0, 1, 1));
+			g2d::pop();
+
 		}
-
-		g2d::color(color!(1, 1, 1, 0.05));
-		g2d::rect(vec2!(240, 24));
 
 	}
 
