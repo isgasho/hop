@@ -3,6 +3,7 @@
 use std::fs;
 use std::path::PathBuf;
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 use dirty::*;
 use dirty::math::*;
@@ -45,6 +46,7 @@ struct RenderedLine {
 	words: Vec<RenderedWord>,
 }
 
+#[derive(Debug, Clone)]
 struct State {
 	content: Vec<String>,
 	cursor: Pos,
@@ -58,6 +60,7 @@ pub struct Conf {
 	expand_tab: bool,
 	shift_width: u8,
 	line_space: i32,
+	break_chars: HashSet<char>,
 }
 
 impl Default for Conf {
@@ -72,6 +75,14 @@ impl Default for Conf {
 		wrapped_chars.insert('{', '}');
 		wrapped_chars.insert('[', ']');
 
+		let mut break_chars = HashSet::new();
+
+		break_chars.insert(' ');
+		break_chars.insert(',');
+		break_chars.insert('.');
+		break_chars.insert(';');
+		break_chars.insert(':');
+
 		return Self {
 			scroll_off: 3,
 			scale: 1.5,
@@ -79,6 +90,7 @@ impl Default for Conf {
 			expand_tab: false,
 			shift_width: 4,
 			line_space: 2,
+			break_chars: break_chars,
 		};
 
 	}
@@ -202,6 +214,7 @@ impl Buffer {
 		};
 
 		buf.read();
+		buf.push();
 
 		return Ok(buf);
 
@@ -302,12 +315,45 @@ impl Buffer {
 
 		if self.content.get(ln as usize - 1).is_some() {
 
-			self.push();
 			self.content[ln as usize - 1] = String::from(content);
 			self.highlight_line(ln);
 			self.modified = true;
 
 		}
+
+	}
+
+	fn next_word(&self, pos: Pos) -> Option<Pos> {
+
+		if let Some(line) = self.get_line(pos.line) {
+			for (i, ch) in line.char_indices().skip(pos.col as usize) {
+				if ch == ' ' || ch == ',' || ch == '.' {
+					return Some(Pos {
+						col: i as u32,
+						.. pos
+					});
+				}
+			}
+		}
+
+		return None;
+
+	}
+
+	fn prev_word(&self, pos: Pos) -> Option<Pos> {
+
+// 		if let Some(line) = self.get_line(pos.line) {
+// 			for (i, ch) in line.char_indices().skip(pos.col as usize) {
+// 				if ch == ' ' || ch == ',' || ch == '.' {
+// 					return Some(Pos {
+// 						col: i as u32,
+// 						.. pos
+// 					});
+// 				}
+// 			}
+// 		}
+
+		return None;
 
 	}
 
@@ -323,7 +369,6 @@ impl Buffer {
 
 	fn insert_line(&mut self, ln: u32) {
 
-		self.push();
 		self.content.insert(ln as usize - 1, String::new());
 		self.rendered.insert(ln as usize - 1, Vec::new());
 		self.modified = true;
@@ -472,12 +517,16 @@ impl Buffer {
 
 	}
 
-	fn move_right_word(&mut self) {
-		// ...
+	fn move_prev_word(&mut self) {
+		if let Some(pos) = self.prev_word(self.cursor) {
+			self.move_to(pos);
+		}
 	}
 
-	fn move_left_word(&mut self) {
-		// ...
+	fn move_next_word(&mut self) {
+		if let Some(pos) = self.next_word(self.cursor) {
+			self.move_to(pos);
+		}
 	}
 
 	fn start_normal(&mut self) {
@@ -603,6 +652,10 @@ impl Buffer {
 				content.insert(cur.col as usize - 1, ch);
 			}
 
+			if self.conf.break_chars.contains(&ch) {
+				self.push();
+			}
+
 			cur.col += 1;
 			self.set_line(cur.line, &content);
 
@@ -614,6 +667,7 @@ impl Buffer {
 
 	fn break_line(&mut self, cur: Pos) {
 
+		self.push();
 		self.insert_line(cur.line + 1);
 
 		if let Some(line) = self.get_line(cur.line).map(Clone::clone) {
@@ -766,7 +820,7 @@ impl Act for Buffer {
 							match ch {
 								'y' => self.copy_line(self.cursor.line),
 								'h' => self.move_left(),
-								'l' => self.move_right(),
+								'l' => self.move_next_word(),
 								'j' => self.move_down(),
 								'k' => self.move_up(),
 								'u' => self.undo(),
