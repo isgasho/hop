@@ -260,43 +260,21 @@ impl Buffer {
 		};
 
 		buf.read();
-		buf.push();
 
 		return Ok(buf);
 
 	}
 
-	fn highlight_line(&mut self, ln: u32) {
+	fn render(&mut self) {
 
-		if let Some(content) = self.get_line(ln).map(Clone::clone) {
-
-			if let Some(s) = self.rendered.get_mut(ln as usize - 1) {
-
-				if let Some(syntax) = &self.syntax {
-
-					let mut h = HighlightLines::new(&syntax, &self.theme_set.themes["base16-ocean.dark"]);
-
-					*s = RenderedChunk::from_syntect_chunk(h.highlight(&content, &self.syntax_set));
-
-				} else {
-
-					*s = vec![RenderedChunk::from_plain(&content)];
-
-				}
-
-			}
-
-		}
-
-	}
-
-	fn highlight_all(&mut self) {
+		let start = self.start_line as usize;
+		let end = start + self.get_view_rows() as usize;
 
 		if let Some(syntax) = &self.syntax {
 
 			let mut h = HighlightLines::new(&syntax, &self.theme_set.themes["base16-ocean.dark"]);
 
-			self.rendered = self.content
+			self.rendered = self.content[start - 1..end]
 				.iter()
 				.map(|l| h.highlight(l, &self.syntax_set))
 				.map(RenderedChunk::from_syntect_chunk)
@@ -304,8 +282,9 @@ impl Buffer {
 
 		} else {
 
-			self.rendered = self.content
+			self.rendered = self.content[start - 1..end]
 				.iter()
+				.skip(self.start_line as usize)
 				.map(|l| vec![RenderedChunk::from_plain(l)])
 				.collect();
 
@@ -322,7 +301,7 @@ impl Buffer {
 				.map(|st| String::from(st))
 				.collect();
 
-			self.highlight_all();
+			self.render();
 
 			return Ok(());
 
@@ -357,7 +336,6 @@ impl Buffer {
 		if let Some(line) = self.content.get_mut(ln as usize - 1) {
 
 			*line = String::from(content);
-			self.highlight_line(ln);
 			self.modified = true;
 
 		}
@@ -369,7 +347,6 @@ impl Buffer {
 		if let Some(line) = self.content.get_mut(ln as usize - 1) {
 
 			line.push_str(content);
-			self.highlight_line(ln);
 			self.modified = true;
 
 		}
@@ -414,7 +391,6 @@ impl Buffer {
 
 		self.push();
 		self.content.remove(ln as usize - 1);
-		self.rendered.remove(ln as usize - 1);
 		self.move_up();
 		self.modified = true;
 
@@ -423,7 +399,6 @@ impl Buffer {
 	fn insert_line(&mut self, ln: u32) {
 
 		self.content.insert(ln as usize - 1, String::new());
-		self.rendered.insert(ln as usize - 1, Vec::new());
 		self.modified = true;
 		self.move_down();
 
@@ -453,7 +428,6 @@ impl Buffer {
 
 			self.content = state.content;
 			self.move_to(state.cursor);
-			self.highlight_all();
 
 		}
 
@@ -521,19 +495,19 @@ impl Buffer {
 
 		self.cursor = pos;
 
-		let top = self.cursor.line - self.conf.scroll_off;
-		let bottom = self.cursor.line - self.get_view_rows() + self.conf.scroll_off;
+		let top = self.cursor.line as i32 - self.conf.scroll_off as i32;
+		let bottom = self.cursor.line as i32 - self.get_view_rows() as i32 + self.conf.scroll_off as i32 + 1;
 
-		if self.start_line > top {
+		if self.start_line as i32 > top {
 			if top > 0 {
-				self.start_line = top;
+				self.start_line = top as u32;
 			} else {
 				self.start_line = 1;
 			}
 		}
 
-		if self.start_line < bottom && bottom < self.content.len() as u32 {
-			self.start_line = bottom;
+		if (self.start_line as i32) < bottom && bottom < self.content.len() as i32 {
+			self.start_line = bottom as u32;
 		}
 
 	}
@@ -1105,6 +1079,8 @@ impl Act for Buffer {
 
 		}
 
+		self.render();
+
 	}
 
 	fn draw(&self) {
@@ -1125,9 +1101,12 @@ impl Act for Buffer {
 		// content
 		g2d::push();
 
-		for l in (self.start_line)..self.start_line + self.get_view_rows() {
+		for (ln, line) in self.rendered.iter().enumerate() {
 
-			if l == self.cursor.line {
+			let real_line = ln as u32 + self.start_line;
+
+			// cursor line
+			if real_line == self.cursor.line {
 
 				g2d::push();
 				g2d::color(color!(0.15, 0.18, 0.22, 1));
@@ -1137,51 +1116,64 @@ impl Act for Buffer {
 
 			}
 
-			if let Some(line) = self.rendered.get(l as usize - 1) {
+			let mut col = 1;
+			let mut cursor_drawn = false;
 
-				g2d::push();
+			g2d::push();
 
-				for chunk in line {
+			// content
+			for chunk in line {
 
-					match chunk {
+				// cursor
+				if real_line == self.cursor.line && !cursor_drawn {
 
-						RenderedChunk::Text { fg, bg, text, } => {
+					if col >= self.cursor.col as usize {
 
-							g2d::color(*fg);
-							g2d::text(&text);
-							g2d::translate(vec2!(tw * text.len() as u32, 0));
+						let diff = self.cursor.col as i32 - col as i32;
 
-						},
+						g2d::push();
+						g2d::translate(vec2!(diff * tw as i32, 0));
+						g2d::color(color!(1, 1, 1, 0.4));
 
-						RenderedChunk::Tab => {
+						match self.mode {
+							Mode::Normal => g2d::rect(vec2!(tw, th)),
+							Mode::Insert => g2d::rect(vec2!(tw / 4, th)),
+							_ => {},
+						}
 
-							g2d::color(color!(0.24, 0.27, 0.33, 1));
-							g2d::text("|");
-							g2d::translate(vec2!(tw * self.conf.shift_width, 0));
-
-						},
+						g2d::pop();
+						cursor_drawn = true;
 
 					}
 
-	// 				g2d::translate();
-	// 				g2d::color(color!(0.84));
+				}
 
-	// 				if self.cursor.line == i as u32 + 1 {
+				match chunk {
 
-	// 					match self.mode {
-	// 						Mode::Normal => g2d::rect(vec2!(tw, th)),
-	// 						Mode::Insert => g2d::rect(vec2!(tw / 4, th)),
-	// 						_ => {},
-	// 					}
+					RenderedChunk::Text { fg, bg, text, } => {
 
-	// 				}
+						g2d::color(*fg);
+						g2d::text(&text);
+						g2d::translate(vec2!(tw * text.len() as u32, 0));
+						col += text.len();
+
+					},
+
+					RenderedChunk::Tab => {
+
+						g2d::color(color!(0.24, 0.27, 0.33, 1));
+						g2d::text("|");
+						g2d::translate(vec2!(tw * self.conf.shift_width, 0));
+						col += 1;
+
+					},
 
 				}
 
-				g2d::pop();
-				g2d::translate(vec2!(0, th));
-
 			}
+
+			g2d::pop();
+			g2d::translate(vec2!(0, th));
 
 		}
 
