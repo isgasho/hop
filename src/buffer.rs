@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use dirty::*;
 use dirty::math::*;
 use input::Key;
+use input::Mouse;
 use input::TextInput;
 use syntect::easy::HighlightLines;
 use syntect::parsing::SyntaxSet;
@@ -22,24 +23,29 @@ use crate::Browser;
 pub struct Buffer {
 
 	mode: Mode,
-	cursor: CurPos,
+	cursor: Pos,
 	path: String,
 	content: Vec<String>,
-	rendered: Vec<Vec<StyledWord>>,
+	rendered: Vec<Vec<RenderedWord>>,
 	start_line: u32,
 	syntax_set: SyntaxSet,
 	syntax: Option<SyntaxReference>,
 	theme_set: ThemeSet,
-	undo_stack: Vec<State>,
+	history: Vec<State>,
 	clipboard: ClipboardContext,
 	font: g2d::Font,
 	conf: Conf,
 
 }
 
+struct RenderedLine {
+	indent: u32,
+	words: Vec<RenderedWord>,
+}
+
 struct State {
 	content: Vec<String>,
-	cursor: CurPos,
+	cursor: Pos,
 }
 
 pub struct Conf {
@@ -74,13 +80,13 @@ impl Default for Conf {
 
 }
 
-#[derive(Clone, Copy)]
-struct CurPos {
+#[derive(Clone, Copy, Debug)]
+struct Pos {
 	line: u32,
 	col: u32,
 }
 
-impl CurPos {
+impl Pos {
 
 	fn new(line: u32, col: u32) -> Self {
 		return Self {
@@ -95,22 +101,22 @@ enum Mode {
 	Normal,
 	Insert,
 	Command,
-	Select(Vec<Selection>),
+	Select(Vec<Range>),
 }
 
-struct Selection {
-	start: CurPos,
-	end: CurPos,
+struct Range {
+	start: Pos,
+	end: Pos,
 }
 
 #[derive(Debug, Clone)]
-struct StyledWord {
+struct RenderedWord {
 	fg: Color,
 	bg: Color,
 	text: String,
 }
 
-impl StyledWord {
+impl RenderedWord {
 
 	fn from_plain(text: &str) -> Self {
 
@@ -167,13 +173,13 @@ impl Buffer {
 			path: path.to_owned(),
 			content: Vec::new(),
 			rendered: Vec::with_capacity(1024),
-			cursor: CurPos::new(1, 1),
+			cursor: Pos::new(1, 1),
 			start_line: 1,
 			syntax_set: syntax_set,
 			syntax: syntax,
 			theme_set: ThemeSet::load_defaults(),
 			conf: Conf::default(),
-			undo_stack: Vec::new(),
+			history: Vec::new(),
 			clipboard: ClipboardProvider::new().unwrap(),
 			font: g2d::Font::new(
 				gfx::Texture::from_bytes(crate::FONT),
@@ -202,12 +208,12 @@ impl Buffer {
 
 					*s = h.highlight(&content, &self.syntax_set)
 						.iter()
-						.map(StyledWord::from_syntect)
+						.map(RenderedWord::from_syntect)
 						.collect();
 
 				} else {
 
-					*s = vec![StyledWord::from_plain(&content)];
+					*s = vec![RenderedWord::from_plain(&content)];
 
 				}
 
@@ -227,7 +233,7 @@ impl Buffer {
 				.iter()
 				.map(|l| h.highlight(l, &self.syntax_set))
 				.map(|v| v.iter()
-					 .map(StyledWord::from_syntect)
+					 .map(RenderedWord::from_syntect)
 					 .collect())
 				.collect();
 
@@ -235,7 +241,7 @@ impl Buffer {
 
 			self.rendered = self.content
 				.iter()
-				.map(|l| vec![StyledWord::from_plain(l)])
+				.map(|l| vec![RenderedWord::from_plain(l)])
 				.collect();
 
 		}
@@ -266,7 +272,7 @@ impl Buffer {
 		if let Ok(_) = fs::write(&self.path, &self.content.join("\n")) {
 			// ...
 		} else {
-			unimplemented!("dialog error (failed to write file)");
+			// ...
 		}
 
 	}
@@ -284,7 +290,7 @@ impl Buffer {
 
 	}
 
-	fn del_line(&mut self, ln: u32) {
+	fn delete_line(&mut self, ln: u32) {
 
 		self.push();
 		self.content.remove(ln as usize - 1);
@@ -311,7 +317,7 @@ impl Buffer {
 
 	fn push(&mut self) {
 
-		self.undo_stack.push(State {
+		self.history.push(State {
 			content: self.content.clone(),
 			cursor: self.cursor.clone(),
 		});
@@ -320,10 +326,10 @@ impl Buffer {
 
 	fn undo(&mut self) {
 
-		if let Some(state) = self.undo_stack.pop() {
+		if let Some(state) = self.history.pop() {
 
 			self.content = state.content;
-			self.cursor = state.cursor;
+			self.move_to(state.cursor);
 			self.highlight_all();
 
 		}
@@ -343,30 +349,47 @@ impl Buffer {
 	fn scroll_up(&mut self) {
 
 		if self.start_line > 1 {
-			if self.cursor.line < self.start_line + self.get_rows() - self.conf.scroll_off {
+			if self.cursor.line < self.start_line + self.get_view_rows() - self.conf.scroll_off {
 				self.start_line -= 1;
 			}
 		}
 
 	}
 
-	fn move_left(&mut self) {
+	fn move_to(&mut self, pos: Pos) {
 
-		let mut cur = self.cursor.clone();
+		self.cursor = pos;
 
-		if cur.col > 1 {
-			cur.col -= 1;
+		let top = self.cursor.line - self.conf.scroll_off;
+		let bottom = self.cursor.line - self.get_view_rows() + self.conf.scroll_off;
+
+		if self.start_line > top && top > 0 {
+			self.start_line = top;
 		}
 
-		self.cursor = cur;
+		if self.start_line < bottom && bottom < self.content.len() as u32 {
+			self.start_line = bottom;
+		}
+
+	}
+
+	fn move_left(&mut self) {
+
+		let mut pos = self.cursor.clone();
+
+		if pos.col > 1 {
+			pos.col -= 1;
+		}
+
+		self.move_to(pos);
 
 	}
 
 	fn move_right(&mut self) {
 
-		let mut cur = self.cursor.clone();
+		let mut pos = self.cursor.clone();
 
-		if let Some(line) = self.get_line(cur.line) {
+		if let Some(line) = self.get_line(pos.line) {
 
 			let len;
 
@@ -376,31 +399,31 @@ impl Buffer {
 				len = line.len()
 			}
 
-			if cur.col < len as u32 {
-				cur.col += 1;
+			if pos.col < len as u32 {
+				pos.col += 1;
 			}
 
 		}
 
-		self.cursor = cur;
+		self.move_to(pos);
 
 	}
 
 	fn move_up(&mut self) {
 
-		let mut cur = self.cursor.clone();
+		let mut pos = self.cursor.clone();
 
-		if self.get_line(cur.line).is_some() {
+		if self.get_line(pos.line).is_some() {
 
-			if let Some(prev_line) = self.get_line(cur.line - 1) {
+			if let Some(prev_line) = self.get_line(pos.line - 1) {
 
-				cur.line -= 1;
+				pos.line -= 1;
 
 				if prev_line.is_empty() {
-					cur.col = 1;
+					pos.col = 1;
 				} else {
-					if cur.col as usize > prev_line.len() {
-						cur.col = prev_line.len() as u32;
+					if pos.col as usize > prev_line.len() {
+						pos.col = prev_line.len() as u32;
 					}
 				}
 
@@ -408,29 +431,25 @@ impl Buffer {
 
 		}
 
-		self.cursor = cur;
-
-		if self.cursor.line < self.start_line + self.conf.scroll_off {
-			self.scroll_up();
-		}
+		self.move_to(pos);
 
 	}
 
 	fn move_down(&mut self) {
 
-		let mut cur = self.cursor.clone();
+		let mut pos = self.cursor.clone();
 
-		if self.get_line(cur.line).is_some() {
+		if self.get_line(pos.line).is_some() {
 
-			if let Some(next_line) = self.get_line(cur.line + 1) {
+			if let Some(next_line) = self.get_line(pos.line + 1) {
 
-				cur.line += 1;
+				pos.line += 1;
 
 				if next_line.is_empty() {
-					cur.col = 1;
+					pos.col = 1;
 				} else {
-					if cur.col as usize > next_line.len() {
-						cur.col = next_line.len() as u32;
+					if pos.col as usize > next_line.len() {
+						pos.col = next_line.len() as u32;
 					}
 				}
 
@@ -438,32 +457,16 @@ impl Buffer {
 
 		}
 
-		self.cursor = cur;
-
-		if self.cursor.line >= self.start_line + self.get_rows() - self.conf.scroll_off {
-			self.scroll_down();
-		}
+		self.move_to(pos);
 
 	}
 
 	fn move_right_word(&mut self) {
-
-		let mut cur = self.cursor.clone();
-
 		// ...
-
-		self.cursor = cur;
-
 	}
 
 	fn move_left_word(&mut self) {
-
-		let mut cur = self.cursor.clone();
-
 		// ...
-
-		self.cursor = cur;
-
 	}
 
 	fn start_normal(&mut self) {
@@ -500,9 +503,9 @@ impl Buffer {
 
 	fn move_line_start(&mut self) {
 
-		let mut cur = self.cursor.clone();
+		let mut pos = self.cursor.clone();
 
-		if let Some(line) = self.get_line(cur.line) {
+		if let Some(line) = self.get_line(pos.line) {
 
 			let mut index = 0;
 
@@ -513,11 +516,11 @@ impl Buffer {
 				}
 			}
 
-			cur.col = index as u32 + 1;
+			pos.col = index as u32 + 1;
 
 		}
 
-		self.cursor = cur;
+		self.move_to(pos);
 
 	}
 
@@ -531,13 +534,13 @@ impl Buffer {
 
 	fn move_line_end(&mut self) {
 
-		let mut cur = self.cursor.clone();
+		let mut pos = self.cursor.clone();
 
-		if let Some(line) = self.get_line(cur.line) {
-			cur.col = line.len() as u32;
+		if let Some(line) = self.get_line(pos.line) {
+			pos.col = line.len() as u32;
 		}
 
-		self.cursor = cur;
+		self.move_to(pos);
 
 	}
 
@@ -563,7 +566,7 @@ impl Buffer {
 
 	}
 
-	fn get_rows(&self) -> u32 {
+	fn get_view_rows(&self) -> u32 {
 
 		g2d::set_font(&self.font);
 
@@ -594,11 +597,11 @@ impl Buffer {
 
 		}
 
-		self.cursor = cur;
+		self.move_to(cur);
 
 	}
 
-	fn break_line(&mut self, cur: CurPos) {
+	fn break_line(&mut self, cur: Pos) {
 
 		self.insert_line(cur.line + 1);
 
@@ -615,25 +618,47 @@ impl Buffer {
 
 	}
 
-	fn del(&mut self) {
+	fn get_indents(&mut self, ln: u32) -> Option<u32> {
 
-		let mut cur = self.cursor.clone();
+		if let Some(line) = self.get_line(ln) {
 
-		if let Some(line) = self.get_line(cur.line) {
+			let mut indents = 0;
 
-			let before = &line[0..cur.col as usize - 1];
+			for ch in line.chars() {
+				if ch == '\t' {
+					indents += 1;
+				} else {
+					break;
+				}
+			}
+
+			return Some(indents);
+
+		}
+
+		return None;
+
+	}
+
+	fn delete(&mut self) {
+
+		let mut pos = self.cursor.clone();
+
+		if let Some(line) = self.get_line(pos.line) {
+
+			let before = &line[0..pos.col as usize - 1];
 
 			if before.is_empty() {
 
-				if let Some(prev_line) = self.get_line(cur.line - 1).map(Clone::clone) {
+				if let Some(prev_line) = self.get_line(pos.line - 1).map(Clone::clone) {
 
 					let mut content = prev_line.clone();
 
 					content.push_str(line);
-					self.del_line(cur.line);
-					self.set_line(cur.line - 1, &content);
-					cur.line -= 1;
-					cur.col = prev_line.len() as u32 + 1;
+					self.delete_line(pos.line);
+					self.set_line(pos.line - 1, &content);
+					pos.line -= 1;
+					pos.col = prev_line.len() as u32 + 1;
 
 				}
 
@@ -641,46 +666,73 @@ impl Buffer {
 
 				let mut content = line.clone();
 
-				if let Some(ch) = self.get_char_at(CurPos::new(self.cursor.line, self.cursor.col - 1)) {
+				if let Some(ch) = self.get_char_at(Pos::new(self.cursor.line, self.cursor.col - 1)) {
 
 					let nch = self.get_char_at(self.cursor);
 					let end_char = self.conf.wrapped_chars.get(&ch).map(Clone::clone);
 
 					if nch.is_some() && nch == end_char {
-						content.remove(cur.col as usize - 1);
+						content.remove(pos.col as usize - 1);
 					}
 
 				}
 
-				content.remove(cur.col as usize - 2);
-				self.set_line(cur.line, &content);
-				cur.col -= 1;
+				content.remove(pos.col as usize - 2);
+				self.set_line(pos.line, &content);
+				pos.col -= 1;
 
 			}
 
 		}
 
-		self.cursor = cur;
+		self.move_to(pos);
 
 	}
 
-	fn get_char_at(&self, cur: CurPos) -> Option<char> {
+	fn get_char_at(&self, pos: Pos) -> Option<char> {
 
-		if let Some(content) = self.get_line(cur.line) {
-			return content.chars().nth(cur.col as usize - 1);
+		if let Some(content) = self.get_line(pos.line) {
+			return content.chars().nth(pos.col as usize - 1);
 		} else {
 			return None;
 		}
 
 	}
 
-	fn del_word(&mut self) {
-
-		let mut cur = self.cursor.clone();
-
+	fn delete_word(&mut self) {
 		// ...
+	}
 
-		self.cursor = cur;
+	fn delete_range(&mut self, r: Range) {
+		// ...
+	}
+
+	fn search(&self, target: &str) -> Vec<Pos> {
+
+		let mut results = vec![];
+		let target_bytes = target.as_bytes();
+		let target_len = target.len();
+
+		for (i, line) in self.content.iter().enumerate() {
+
+			for (offset, _) in line.char_indices() {
+
+				let slice = &line[offset..];
+				let slice_len = slice.len();
+				let slice_bytes = slice.as_bytes();
+
+				if slice_len >= target_len && target_bytes == &slice_bytes[..target_len] {
+					results.push(Pos {
+						line: i as u32 + 1,
+						col: offset as u32 + 1,
+					});
+				}
+
+			}
+
+		}
+
+		return results;
 
 	}
 
@@ -707,9 +759,10 @@ impl Act for Buffer {
 								'j' => self.move_down(),
 								'k' => self.move_up(),
 								'u' => self.undo(),
-								'd' => self.del_line(self.cursor.line),
+								'd' => self.delete_line(self.cursor.line),
 								'<' => self.move_line_start_insert(),
 								'>' => self.move_line_end_insert(),
+								':' => self.start_command(),
 								_ => {},
 							}
 
@@ -747,16 +800,18 @@ impl Act for Buffer {
 
 				}
 
+				if input::mouse_pressed(Mouse::Left) {
+
+					let mpos: Vec2 = input::mouse_pos().into();
+
+				}
+
 				if input::key_pressed(Key::Return) {
 					self.start_insert();
 				}
 
 				if input::key_pressed(Key::Tab) {
 					self.start_browser();
-				}
-
-				if input::key_pressed(Key::Semicolon) {
-					self.start_command();
 				}
 
 				if input::key_pressed(Key::W) {
@@ -814,9 +869,9 @@ impl Act for Buffer {
 						TextInput::Backspace => {
 
 							if input::key_down(Key::LAlt) {
-								self.del_word();
+								self.delete_word();
 							} else {
-								self.del();
+								self.delete();
 							}
 
 						},
@@ -933,7 +988,7 @@ impl Act for Buffer {
 		g2d::rect(vec2!(w, h));
 
 		// viewport
-		g2d::translate(vec2!(8, (self.start_line - 1) as i32 * -1 * g2d::font_height() as i32));
+		g2d::translate(vec2!(8, (self.start_line as i32 - 1) * -1 * g2d::font_height() as i32));
 
 		// cursor
 		g2d::push();
