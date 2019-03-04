@@ -1120,56 +1120,68 @@ impl Act for Buffer {
 		g2d::rect(vec2!(w, h));
 
 		// viewport
-		g2d::translate(vec2!(8, (self.start_line as i32 - 1) * -1 * th as i32));
-
-		// cursor
-		g2d::push();
-		g2d::color(color!(0.15, 0.18, 0.22, 1));
-		g2d::translate(vec2!(0, (self.cursor.line - 1) as i32 * th));
-		g2d::rect(vec2!(w, th));
-		g2d::translate(vec2!((self.cursor.col - 1) * tw, 0));
-		g2d::color(color!(0.84));
-
-		match self.mode {
-			Mode::Normal => g2d::rect(vec2!(tw, th)),
-			Mode::Insert => g2d::rect(vec2!(tw / 4, th)),
-			_ => {},
-		}
-
-		g2d::pop();
+		g2d::translate(vec2!(12, 0));
 
 		// content
 		g2d::push();
 
-		for line in &self.rendered {
+		for l in (self.start_line)..self.start_line + self.get_view_rows() {
 
-			g2d::push();
+			if l == self.cursor.line {
 
-			for chunk in line {
-
-				match chunk {
-
-					RenderedChunk::Text { fg, bg, text, } => {
-
-						g2d::color(*fg);
-						g2d::text(&text);
-						g2d::translate(vec2!(tw * text.len() as u32, 0));
-
-					},
-
-					RenderedChunk::Tab => {
-
-						g2d::translate(vec2!(tw * self.conf.shift_width, 0));
-
-					},
-
-				}
-
+				g2d::push();
+				g2d::color(color!(0.15, 0.18, 0.22, 1));
+				g2d::translate(vec2!(-12, 0));
+				g2d::rect(vec2!(w as f32 / self.conf.scale, th));
+				g2d::pop();
 
 			}
 
-			g2d::pop();
-			g2d::translate(vec2!(0, th));
+			if let Some(line) = self.rendered.get(l as usize - 1) {
+
+				g2d::push();
+
+				for chunk in line {
+
+					match chunk {
+
+						RenderedChunk::Text { fg, bg, text, } => {
+
+							g2d::color(*fg);
+							g2d::text(&text);
+							g2d::translate(vec2!(tw * text.len() as u32, 0));
+
+						},
+
+						RenderedChunk::Tab => {
+
+							g2d::color(color!(0.24, 0.27, 0.33, 1));
+							g2d::text("|");
+							g2d::translate(vec2!(tw * self.conf.shift_width, 0));
+
+						},
+
+					}
+
+	// 				g2d::translate();
+	// 				g2d::color(color!(0.84));
+
+	// 				if self.cursor.line == i as u32 + 1 {
+
+	// 					match self.mode {
+	// 						Mode::Normal => g2d::rect(vec2!(tw, th)),
+	// 						Mode::Insert => g2d::rect(vec2!(tw / 4, th)),
+	// 						_ => {},
+	// 					}
+
+	// 				}
+
+				}
+
+				g2d::pop();
+				g2d::translate(vec2!(0, th));
+
+			}
 
 		}
 
