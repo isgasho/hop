@@ -64,7 +64,7 @@ pub struct Conf {
 	scale: f32,
 	wrapped_chars: HashMap<char, char>,
 	expand_tab: bool,
-	shift_width: u8,
+	shift_width: u32,
 	line_space: i32,
 	break_chars: HashSet<char>,
 }
@@ -109,7 +109,7 @@ impl Default for Conf {
 }
 
 #[derive(Clone, Copy, Debug)]
-struct Pos {
+pub struct Pos {
 	line: u32,
 	col: u32,
 }
@@ -125,16 +125,18 @@ impl Pos {
 
 }
 
-enum Mode {
+#[derive(Clone, Debug)]
+pub enum Mode {
 	Normal,
 	Insert,
 	Command,
 	Select(Vec<Range>),
 }
 
-struct Range {
-	start: Pos,
-	end: Pos,
+#[derive(Clone, Debug)]
+pub struct Range {
+	pub start: Pos,
+	pub end: Pos,
 }
 
 impl RenderedChunk {
@@ -146,6 +148,45 @@ impl RenderedChunk {
 			bg: color!(),
 			text: String::from(text),
 		};
+
+	}
+
+	fn from_syntect_chunk(def: Vec<(Style, &str)>) -> Vec<Self> {
+
+		let mut list: Vec<Self> = Vec::with_capacity(def.len());
+
+		for (style, text) in def {
+
+			let mut last_word = None;
+
+			for (offset, ch) in text.char_indices() {
+
+				if ch == '\t' {
+
+					if let Some(i) = last_word {
+						list.push(RenderedChunk::from_syntect(&(style, &text[i..offset])));
+						last_word = None;
+					}
+
+					list.push(RenderedChunk::Tab);
+
+				} else {
+
+					if last_word.is_none() {
+						last_word = Some(offset);
+					}
+
+				}
+
+			}
+
+			if let Some(i) = last_word {
+				list.push(RenderedChunk::from_syntect(&(style, &text[i..text.len()])));
+			}
+
+		}
+
+		return list;
 
 	}
 
@@ -179,6 +220,7 @@ impl RenderedChunk {
 		};
 
 	}
+
 }
 
 pub enum Error {
@@ -218,6 +260,7 @@ impl Buffer {
 		};
 
 		buf.read();
+		buf.push();
 
 		return Ok(buf);
 
@@ -233,10 +276,7 @@ impl Buffer {
 
 					let mut h = HighlightLines::new(&syntax, &self.theme_set.themes["base16-ocean.dark"]);
 
-					*s = h.highlight(&content, &self.syntax_set)
-						.iter()
-						.map(RenderedChunk::from_syntect)
-						.collect();
+					*s = RenderedChunk::from_syntect_chunk(h.highlight(&content, &self.syntax_set));
 
 				} else {
 
@@ -259,9 +299,7 @@ impl Buffer {
 			self.rendered = self.content
 				.iter()
 				.map(|l| h.highlight(l, &self.syntax_set))
-				.map(|v| v.iter()
-					 .map(RenderedChunk::from_syntect)
-					 .collect())
+				.map(RenderedChunk::from_syntect_chunk)
 				.collect();
 
 		} else {
@@ -1115,11 +1153,15 @@ impl Act for Buffer {
 
 						g2d::color(*fg);
 						g2d::text(&text);
-						g2d::translate(vec2!(g2d::font_width() * text.len() as u32, 0));
+						g2d::translate(vec2!(tw * text.len() as u32, 0));
 
 					},
 
-					RenderedChunk::Tab => {},
+					RenderedChunk::Tab => {
+
+						g2d::translate(vec2!(tw * self.conf.shift_width, 0));
+
+					},
 
 				}
 

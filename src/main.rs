@@ -10,8 +10,8 @@ use dirty::*;
 mod buffer;
 mod browser;
 
-use buffer::*;
-use browser::*;
+use buffer::Buffer;
+use browser::Browser;
 
 include!("res/font.rs");
 
