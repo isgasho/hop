@@ -20,6 +20,8 @@ pub struct Browser {
 	text_tex: gfx::Texture,
 	folder_tex: gfx::Texture,
 	selection_tex: gfx::Texture,
+	back_tex: gfx::Texture,
+	image_tex: gfx::Texture,
 }
 
 pub struct Conf {
@@ -92,6 +94,8 @@ impl Browser {
 			markings: Vec::new(),
 			text_tex: gfx::Texture::from_bytes(include_bytes!("res/text.png")),
 			folder_tex: gfx::Texture::from_bytes(include_bytes!("res/folder.png")),
+			image_tex: gfx::Texture::from_bytes(include_bytes!("res/image.png")),
+			back_tex: gfx::Texture::from_bytes(include_bytes!("res/back.png")),
 			selection_tex: gfx::Texture::from_bytes(include_bytes!("res/selection.png")),
 			font: g2d::Font::new(
 				gfx::Texture::from_bytes(crate::FONT),
@@ -150,6 +154,15 @@ impl Browser {
 
 		self.select_item(&old_path);
 
+	}
+
+	fn selected(&self) -> Option<&Item> {
+
+		if let Selection::Item(i) = self.selection {
+			return self.listings.get(i);
+		}
+
+		return None;
 	}
 
 	fn enter(&mut self) {
@@ -224,15 +237,29 @@ impl Browser {
 				if !self.conf.ignores.check(&get_fname(&p)) {
 
 					if p.is_dir() {
+
 						dirs.push(Item {
 							path: p,
 							kind: ItemType::Folder,
 						});
+
 					} else if p.is_file() {
+
+						let mut kind = ItemType::Text;
+
+						if let Some(ext) = p.extension() {
+
+							if ext == "png" {
+								kind = ItemType::Image;
+							}
+
+						}
+
 						files.push(Item {
 							path: p,
-							kind: ItemType::Text,
+							kind: kind,
 						});
+
 					}
 
 				}
@@ -284,21 +311,13 @@ impl Act for Browser {
 			self.move_up();
 		}
 
-		if let Some(scroll) = input::scroll_delta() {
-			if scroll.y > 0 {
-				self.move_up();
-			} else if scroll.y < 0 {
-				self.move_down();
-			}
-		}
-
 	}
 
 	fn draw(&self) {
 
 		let (w, h) = window::size().into();
 		let cols = 4;
-		let size = 96;
+		let size = 108;
 
 		g2d::scale(vec2!(2));
 		g2d::set_font(&self.font);
@@ -310,12 +329,19 @@ impl Act for Browser {
 		g2d::pop();
 
 		g2d::push();
-		g2d::translate(vec2!(24));
+		g2d::translate(vec2!(32));
 
+		// back
+		g2d::push();
+// 		g2d::translate(vec2!(size));
+		g2d::draw(&self.back_tex, rect!(0, 0, 1, 1));
+		g2d::pop();
+
+		// items
 		for (i, item) in self.listings.iter().enumerate() {
 
-			let x = i % cols;
-			let y = i / cols;
+			let x = (i + 1) % cols;
+			let y = (i + 1) / cols;
 
 			g2d::push();
 			g2d::translate(vec2!(x, y) * size as f32);
@@ -326,6 +352,7 @@ impl Act for Browser {
 
 				ItemType::Folder => g2d::draw(&self.folder_tex, rect!(0, 0, 1, 1)),
 				ItemType::Text => g2d::draw(&self.text_tex, rect!(0, 0, 1, 1)),
+				ItemType::Image => g2d::draw(&self.image_tex, rect!(0, 0, 1, 1)),
 				_ => {},
 
 			}
@@ -339,11 +366,19 @@ impl Act for Browser {
 
 		if let Selection::Item(i) = self.selection {
 
-			let x = i % cols;
-			let y = i / cols;
+			let x = (i + 1) % cols;
+			let y = (i + 1) / cols;
 
 			g2d::push();
 			g2d::translate(vec2!(x, y) * size as f32 - vec2!(22));
+			g2d::scale(vec2!((app::time() * 6.0).sin() * 0.02 + 1.0));
+			g2d::draw(&self.selection_tex, rect!(0, 0, 1, 1));
+			g2d::pop();
+
+		} else if let Selection::Back = self.selection {
+
+			g2d::push();
+			g2d::translate(vec2!(-22));
 			g2d::scale(vec2!((app::time() * 6.0).sin() * 0.02 + 1.0));
 			g2d::draw(&self.selection_tex, rect!(0, 0, 1, 1));
 			g2d::pop();
