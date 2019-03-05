@@ -13,6 +13,8 @@ use input::TextInput;
 use syntect::easy::HighlightLines;
 use syntect::parsing::SyntaxSet;
 use syntect::parsing::SyntaxReference;
+use syntect::parsing::SyntaxDefinition;
+use syntect::parsing::SyntaxSetBuilder;
 use syntect::highlighting::ThemeSet;
 use syntect::highlighting::Style;
 use clipboard::ClipboardProvider;
@@ -231,8 +233,14 @@ impl Buffer {
 
 	pub fn from_file(path: &str) -> Result<Self, Error> {
 
-		let syntax_set = SyntaxSet::load_defaults_newlines();
-		let syntax = syntax_set.find_syntax_by_extension("rs").map(Clone::clone);
+		let mut set = SyntaxSetBuilder::new();
+
+		if let Ok(def) = SyntaxDefinition::load_from_str(include_str!("res/syntax/rust.syn"), true, Some("rust")) {
+			set.add(def);
+		}
+
+		let set = set.build();
+		let syntax = set.find_syntax_by_extension("rs").map(Clone::clone);
 
 		let mut buf = Self {
 
@@ -242,7 +250,7 @@ impl Buffer {
 			rendered: Vec::with_capacity(1024),
 			cursor: Pos::new(1, 1),
 			start_line: 1,
-			syntax_set: syntax_set,
+			syntax_set: set,
 			syntax: syntax,
 			theme_set: ThemeSet::load_defaults(),
 			conf: Conf::default(),
@@ -297,7 +305,6 @@ impl Buffer {
 
 			self.rendered = self.content[start - 1..end]
 				.iter()
-				.skip(self.start_line as usize)
 				.map(|l| vec![RenderedChunk::from_plain(l)])
 				.collect();
 
@@ -1109,7 +1116,7 @@ impl Act for Buffer {
 		let tw = g2d::font_width();
 		let th = g2d::font_height() as i32 + self.conf.line_space;
 
-		g2d::color(color!(0.10, 0.13, 0.17, 1));
+		g2d::color(color!(0.11, 0.14, 0.19, 1));
 		g2d::rect(vec2!(w, h));
 
 		// viewport
@@ -1126,7 +1133,7 @@ impl Act for Buffer {
 			if real_line == self.cursor.line {
 
 				g2d::push();
-				g2d::color(color!(0.15, 0.18, 0.22, 1));
+				g2d::color(color!(1, 1, 1, 0.04));
 				g2d::translate(vec2!(-12, 0));
 				g2d::rect(vec2!(w as f32 / self.conf.scale, th));
 				g2d::pop();
