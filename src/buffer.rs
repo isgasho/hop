@@ -265,10 +265,23 @@ impl Buffer {
 
 	}
 
+	fn view_range(&self) -> (u32, u32) {
+
+		let start = self.start_line;
+		let mut end = start + self.get_view_rows();
+
+		if end > self.content.len() as u32 {
+			end = self.content.len() as u32;
+		}
+
+		return (start, end);
+
+	}
+
 	fn render(&mut self) {
 
-		let start = self.start_line as usize;
-		let end = start + self.get_view_rows() as usize;
+		let (start, end) = self.view_range();
+		let (start, end) = (start as usize, end as usize);
 
 		if let Some(syntax) = &self.syntax {
 
@@ -356,12 +369,14 @@ impl Buffer {
 	fn next_word(&self, pos: Pos) -> Option<Pos> {
 
 		if let Some(line) = self.get_line(pos.line) {
-			for (i, ch) in line.char_indices().skip(pos.col as usize) {
-				if self.conf.break_chars.contains(&ch) {
-					return Some(Pos {
-						col: i as u32,
-						.. pos
-					});
+			if pos.col < line.len() as u32 {
+				for (i, ch) in line[pos.col as usize..].char_indices() {
+					if self.conf.break_chars.contains(&ch) {
+						return Some(Pos {
+							col: i as u32,
+							.. pos
+						});
+					}
 				}
 			}
 		}
@@ -372,16 +387,18 @@ impl Buffer {
 
 	fn prev_word(&self, pos: Pos) -> Option<Pos> {
 
-// 		if let Some(line) = self.get_line(pos.line) {
-// 			for (i, ch) in line.char_indices().skip(pos.col as usize) {
-// 				if ch == ' ' || ch == ',' || ch == '.' {
-// 					return Some(Pos {
-// 						col: i as u32,
-// 						.. pos
-// 					});
-// 				}
-// 			}
-// 		}
+		if let Some(line) = self.get_line(pos.line) {
+			if pos.col < line.len() as u32 {
+				for (i, ch) in line[..pos.col as usize].char_indices().rev() {
+					if self.conf.break_chars.contains(&ch) {
+						return Some(Pos {
+							col: i as u32,
+							.. pos
+						});
+					}
+				}
+			}
+		}
 
 		return None;
 
@@ -436,7 +453,7 @@ impl Buffer {
 	fn scroll_down(&mut self) {
 
 		if self.start_line < self.content.len() as u32 {
-			if self.cursor.line - self.start_line >= self.conf.scroll_off + 1 {
+			if self.cursor.line - self.start_line >= self.conf.scroll_off {
 				self.start_line += 1;
 			}
 		}
@@ -446,14 +463,14 @@ impl Buffer {
 	fn scroll_up(&mut self) {
 
 		if self.start_line > 1 {
-			if self.cursor.line + 1 < self.start_line + self.get_view_rows() - self.conf.scroll_off {
+			if self.cursor.line < self.start_line + self.get_view_rows() - self.conf.scroll_off {
 				self.start_line -= 1;
 			}
 		}
 
 	}
 
-	fn move_to(&mut self, mut pos: Pos) {
+	fn move_to(&mut self, pos: Pos) {
 
 		if pos.col < 1 {
 			return self.move_to(Pos {
@@ -1121,32 +1138,32 @@ impl Act for Buffer {
 
 			g2d::push();
 
-			// content
-			for chunk in line {
+			// cursor
+			if real_line == self.cursor.line && !cursor_drawn {
 
-				// cursor
-				if real_line == self.cursor.line && !cursor_drawn {
+				if col >= self.cursor.col as usize {
 
-					if col >= self.cursor.col as usize {
+					let diff = self.cursor.col as i32 - col as i32;
 
-						let diff = self.cursor.col as i32 - col as i32;
+					g2d::push();
+					g2d::translate(vec2!(diff * tw as i32, 0));
+					g2d::color(color!(1, 1, 1, 0.4));
 
-						g2d::push();
-						g2d::translate(vec2!(diff * tw as i32, 0));
-						g2d::color(color!(1, 1, 1, 0.4));
-
-						match self.mode {
-							Mode::Normal => g2d::rect(vec2!(tw, th)),
-							Mode::Insert => g2d::rect(vec2!(tw / 4, th)),
-							_ => {},
-						}
-
-						g2d::pop();
-						cursor_drawn = true;
-
+					match self.mode {
+						Mode::Normal => g2d::rect(vec2!(tw, th)),
+						Mode::Insert => g2d::rect(vec2!(tw / 4, th)),
+						_ => {},
 					}
 
+					g2d::pop();
+					cursor_drawn = true;
+
 				}
+
+			}
+
+			// content
+			for chunk in line {
 
 				match chunk {
 
