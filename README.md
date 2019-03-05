@@ -22,5 +22,7 @@ Hanging-out Place
 
 ### screenshots
 ![1](misc/1.png)
+*file browser*
 ![2](misc/2.png)
+*text editor*
 
