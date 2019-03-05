@@ -20,3 +20,7 @@ Hanging-out Place
 - Webpage Editor
 - Web Browser
 
+### screenshots
+![1](misc/1.png)
+![2](misc/2.png)
+

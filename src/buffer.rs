@@ -357,7 +357,7 @@ impl Buffer {
 
 		if let Some(line) = self.get_line(pos.line) {
 			for (i, ch) in line.char_indices().skip(pos.col as usize) {
-				if ch == ' ' || ch == ',' || ch == '.' {
+				if self.conf.break_chars.contains(&ch) {
 					return Some(Pos {
 						col: i as u32,
 						.. pos
@@ -436,7 +436,7 @@ impl Buffer {
 	fn scroll_down(&mut self) {
 
 		if self.start_line < self.content.len() as u32 {
-			if self.cursor.line - self.start_line >= self.conf.scroll_off {
+			if self.cursor.line - self.start_line >= self.conf.scroll_off + 1 {
 				self.start_line += 1;
 			}
 		}
@@ -446,7 +446,7 @@ impl Buffer {
 	fn scroll_up(&mut self) {
 
 		if self.start_line > 1 {
-			if self.cursor.line < self.start_line + self.get_view_rows() - self.conf.scroll_off {
+			if self.cursor.line + 1 < self.start_line + self.get_view_rows() - self.conf.scroll_off {
 				self.start_line -= 1;
 			}
 		}
