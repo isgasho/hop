@@ -17,6 +17,7 @@ use syntect::parsing::SyntaxDefinition;
 use syntect::parsing::SyntaxSetBuilder;
 use syntect::highlighting::ThemeSet;
 use syntect::highlighting::Style;
+use regex::Regex;
 use clipboard::ClipboardProvider;
 use clipboard::ClipboardContext;
 
@@ -69,6 +70,8 @@ pub struct Conf {
 	shift_width: u32,
 	line_space: i32,
 	break_chars: HashSet<char>,
+	forward_pats: Vec<Regex>,
+	backward_pats: Vec<Regex>,
 }
 
 impl Default for Conf {
@@ -96,6 +99,18 @@ impl Default for Conf {
 		break_chars.insert('[');
 		break_chars.insert('\'');
 
+		let mut forward_pats = vec![];
+
+		if let Ok(pat) = Regex::new(r"\{$") {
+			forward_pats.push(pat);
+		}
+
+		let mut backward_pats = vec![];
+
+		if let Ok(pat) = Regex::new("}$") {
+			backward_pats.push(pat);
+		}
+
 		return Self {
 			scroll_off: 3,
 			scale: 1.5,
@@ -104,6 +119,8 @@ impl Default for Conf {
 			shift_width: 4,
 			line_space: 2,
 			break_chars: break_chars,
+			forward_pats: forward_pats,
+			backward_pats: backward_pats,
 		};
 
 	}
@@ -731,13 +748,21 @@ impl Buffer {
 
 			let before = String::from(&line[0..cur.col as usize - 1]);
 			let mut after = String::from(&line[cur.col as usize - 1..line.len()]);
+			let mut indents = 0;
 
-			if let Some(indents) = self.get_indents(cur.line) {
+			if let Some(i) = self.get_indents(cur.line) {
+				indents += i;
+			}
 
-				for _ in 0..indents {
-					after.insert(0, '\t');
+			for pat in &self.conf.forward_pats {
+				if pat.is_match(&before) {
+					indents += 1;
+					break;
 				}
+			}
 
+			for _ in 0..indents {
+				after.insert(0, '\t');
 			}
 
 			self.set_line(cur.line, &before);
