@@ -25,7 +25,7 @@ type Id = usize;
 ctx!(HOP: HoP);
 
 struct HoP {
-	acts: BTreeMap<usize, Box<Act>>,
+	acts: BTreeMap<Id, Box<Act>>,
 	current_act: Option<Id>,
 	last_id: Id,
 }
@@ -59,7 +59,6 @@ impl HoP {
 		if let Some(current_id) = self.current_act {
 			if current_id == id {
 				unimplemented!("go to next available act");
-				// go to next available act
 			}
 		}
 

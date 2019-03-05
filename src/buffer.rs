@@ -1145,32 +1145,32 @@ impl Act for Buffer {
 
 			g2d::push();
 
-			// cursor
-			if real_line == self.cursor.line && !cursor_drawn {
-
-				if col >= self.cursor.col as usize {
-
-					let diff = self.cursor.col as i32 - col as i32;
-
-					g2d::push();
-					g2d::translate(vec2!(diff * tw as i32, 0));
-					g2d::color(color!(1, 1, 1, 0.4));
-
-					match self.mode {
-						Mode::Normal => g2d::rect(vec2!(tw, th)),
-						Mode::Insert => g2d::rect(vec2!(tw / 4, th)),
-						_ => {},
-					}
-
-					g2d::pop();
-					cursor_drawn = true;
-
-				}
-
-			}
-
 			// content
 			for chunk in line {
+
+				// cursor
+				if real_line == self.cursor.line && !cursor_drawn {
+
+					if col >= self.cursor.col as usize {
+
+						let diff = self.cursor.col as i32 - col as i32;
+
+						g2d::push();
+						g2d::translate(vec2!(diff * tw as i32, 0));
+						g2d::color(color!(1, 1, 1, 0.4));
+
+						match self.mode {
+							Mode::Normal => g2d::rect(vec2!(tw, th)),
+							Mode::Insert => g2d::rect(vec2!(tw / 4, th)),
+							_ => {},
+						}
+
+						g2d::pop();
+						cursor_drawn = true;
+
+					}
+
+				}
 
 				match chunk {
 
@@ -1193,6 +1193,21 @@ impl Act for Buffer {
 					},
 
 				}
+
+			}
+
+			if real_line == self.cursor.line && !cursor_drawn {
+
+				g2d::push();
+				g2d::color(color!(1, 1, 1, 0.4));
+
+				match self.mode {
+					Mode::Normal => g2d::rect(vec2!(tw, th)),
+					Mode::Insert => g2d::rect(vec2!(tw / 4, th)),
+					_ => {},
+				}
+
+				g2d::pop();
 
 			}
 
