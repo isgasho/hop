@@ -21,8 +21,8 @@ Hanging-out Place
 - Web Browser
 
 ### screenshots
-![1](misc/1.png)
 *file browser*
-![2](misc/2.png)
+![1](misc/1.png)
 *text editor*
+![2](misc/2.png)
 
