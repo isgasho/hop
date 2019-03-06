@@ -183,7 +183,7 @@ impl Browser {
 					if let ItemType::Folder = item.kind {
 						self.cd(item.path.clone());
 					} else if let ItemType::Text = item.kind {
-						if let Ok(buf) = Buffer::from_file(&pathbuf_to_str(&item.path)) {
+						if let Ok(buf) = Buffer::from_file(item.path.clone()) {
 							crate::start(buf);
 						}
 					}

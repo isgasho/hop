@@ -4,6 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::io::Cursor;
 
 use dirty::*;
 use dirty::math::*;
@@ -28,7 +29,7 @@ pub struct Buffer {
 
 	mode: Mode,
 	cursor: Pos,
-	path: String,
+	path: PathBuf,
 	content: Vec<String>,
 	rendered: Vec<Vec<RenderedChunk>>,
 	start_line: u32,
@@ -49,16 +50,6 @@ struct State {
 	content: Vec<String>,
 	cursor: Pos,
 	modified: bool,
-}
-
-#[derive(Debug, Clone)]
-enum RenderedChunk {
-	Text {
-		fg: Color,
-		bg: Color,
-		text: String,
-	},
-	Tab,
 }
 
 #[derive(Debug, Clone)]
@@ -107,7 +98,7 @@ impl Default for Conf {
 
 		let mut backward_pats = vec![];
 
-		if let Ok(pat) = Regex::new("}$") {
+		if let Ok(pat) = Regex::new(r"^\s*{") {
 			backward_pats.push(pat);
 		}
 
@@ -156,6 +147,16 @@ pub enum Mode {
 pub struct Range {
 	pub start: Pos,
 	pub end: Pos,
+}
+
+#[derive(Debug, Clone)]
+enum RenderedChunk {
+	Text {
+		fg: Color,
+		bg: Color,
+		text: String,
+	},
+	Tab,
 }
 
 impl RenderedChunk {
@@ -246,23 +247,42 @@ pub enum Error {
 	IO,
 }
 
+fn load_syntaxes(builder: &mut SyntaxSetBuilder, syntaxes: &[&str]) {
+
+	for syn in syntaxes {
+		if let Ok(def) = SyntaxDefinition::load_from_str(syn, true, None) {
+			builder.add(def);
+		}
+	}
+
+}
+
 impl Buffer {
 
-	pub fn from_file(path: &str) -> Result<Self, Error> {
+	pub fn from_file(path: PathBuf) -> Result<Self, Error> {
 
 		let mut set = SyntaxSetBuilder::new();
 
-		if let Ok(def) = SyntaxDefinition::load_from_str(include_str!("res/syntax/rust.syn"), true, Some("rust")) {
-			set.add(def);
-		}
+		load_syntaxes(&mut set, &[
+			include_str!("res/syntax/rust.yaml"),
+			include_str!("res/syntax/markdown.yaml"),
+			include_str!("res/syntax/lua.yaml"),
+			include_str!("res/syntax/toml.yaml"),
+		]);
 
 		let set = set.build();
-		let syntax = set.find_syntax_by_extension("rs").map(Clone::clone);
+		let mut syntax = None;
+
+		if let Some(ext) = path.extension() {
+			if let Some(ext) = ext.to_str() {
+				syntax = set.find_syntax_by_extension(ext).map(Clone::clone);
+			}
+		}
 
 		let mut buf = Self {
 
 			mode: Mode::Normal,
-			path: path.to_owned(),
+			path: path,
 			content: Vec::new(),
 			rendered: Vec::with_capacity(1024),
 			cursor: Pos::new(1, 1),
@@ -428,12 +448,16 @@ impl Buffer {
 
 	}
 
+	fn adjust_cursor(&mut self) {
+		self.move_to(self.cursor);
+	}
+
 	fn delete_line(&mut self, ln: u32) {
 
 		self.push();
 		self.content.remove(ln as usize - 1);
-		self.move_up();
 		self.modified = true;
+		self.adjust_cursor();
 
 	}
 
