@@ -53,9 +53,12 @@ impl Default for Theme {
 		let white = color!(0.78, 0.80, 0.83, 1);
 		let grey = color!(0.24, 0.27, 0.33, 1);
 		let yellow = color!(0.98, 0.78, 0.39, 1);
-		let green = color!(0.60, 0.78, 0.33, 1);
+		let green = color!(0.60, 0.78, 0.58, 1);
 		let purple = color!(0.77, 0.58, 0.77, 1);
 		let orange = color!(0.98, 0.57, 0.34, 1);
+		let cyan = color!(0.38, 0.70, 0.70, 1);
+		let brown = color!(0.67, 0.47, 0.40, 1);
+		let red = color!(0.93, 0.37, 0.40, 1);
 		let blue = color!(0.40, 0.60, 0.80, 1);
 		let none = color!(1, 1, 1, 0);
 

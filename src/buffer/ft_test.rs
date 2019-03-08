@@ -14,6 +14,11 @@ pub fn rust() -> FileType {
 	pairs.insert('{', '}');
 	pairs.insert('[', ']');
 
+	let mut syntax = Syntax::new();
+
+	syntax.add_keywords(&["use", "pub", "fn", "let"]);
+	syntax.add_types(&["i8", "i16", "i32", "i64", "i128", "u8", "u16", "u32", "u64", "u128"]);
+
 	return FileType {
 
 		name: String::from("rust"),

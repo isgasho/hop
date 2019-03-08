@@ -42,12 +42,30 @@ impl Default for FileType {
 
 pub struct Syntax {
 	keywords: Vec<String>,
-	contained: Vec<Container>,
+	types: Vec<String>,
 }
 
-struct Container {
-	start: String,
-	end: String,
+impl Syntax {
+
+	pub fn new() -> Self {
+		return Self {
+			keywords: vec![],
+			types: vec![],
+		};
+	}
+
+	pub fn add_keywords(&mut self, words: &[&str]) {
+		for w in words {
+			self.keywords.push(w.to_owned().to_string());
+		}
+	}
+
+	pub fn add_types(&mut self, types: &[&str]) {
+		for w in types {
+			self.types.push(w.to_owned().to_string());
+		}
+	}
+
 }
 
 pub struct Registry {

@@ -135,47 +135,7 @@ enum RenderedChunk {
 		style: Style,
 		text: String,
 	},
-	Tab,
-}
-
-impl RenderedChunk {
-
-	fn from_plain(text: &str) -> Vec<Self> {
-
-		let mut chunks = vec![];
-		let mut last = 0;
-
-		for (i, ch) in text.char_indices() {
-
-			if ch == '\t' {
-
-				let prev = &text[last..i];
-
-				if !prev.is_empty() {
-
-					chunks.push(RenderedChunk::Text {
-						style: Style::new(color!(0.75, 0.77, 0.81, 1), color!(0), FontStyle::Normal),
-						text: text[last..i].to_owned(),
-					});
-
-				}
-
-				last = i + 1;
-				chunks.push(RenderedChunk::Tab);
-
-			}
-
-		}
-
-		chunks.push(RenderedChunk::Text {
-			style: Style::new(color!(0.75, 0.77, 0.81, 1), color!(0), FontStyle::Normal),
-			text: text[last..text.len()].to_owned(),
-		});
-
-		return chunks;
-
-	}
-
+	Shift(u32),
 }
 
 pub enum Error {
@@ -211,6 +171,42 @@ impl Buffer {
 
 	}
 
+	fn render_line(&self, text: &str) -> Vec<RenderedChunk> {
+
+		let mut chunks = vec![];
+		let mut last = 0;
+
+		for (i, ch) in text.char_indices() {
+
+			if ch == '\t' {
+
+				let prev = &text[last..i];
+
+				if !prev.is_empty() {
+
+					chunks.push(RenderedChunk::Text {
+						style: self.theme.normal.clone(),
+						text: text[last..i].to_owned(),
+					});
+
+				}
+
+				last = i + 1;
+				chunks.push(RenderedChunk::Shift(self.filetype.shift_width));
+
+			}
+
+		}
+
+		chunks.push(RenderedChunk::Text {
+			style: self.theme.normal.clone(),
+			text: text[last..text.len()].to_owned(),
+		});
+
+		return chunks;
+
+	}
+
 	fn log(&mut self, info: &str) {
 		self.log.push(info.to_owned());
 	}
@@ -235,7 +231,7 @@ impl Buffer {
 
 		self.rendered = self.content[start - 1..end]
 			.iter()
-			.map(|l| RenderedChunk::from_plain(l))
+			.map(|l| self.render_line(l))
 			.collect();
 
 	}
@@ -1113,11 +1109,11 @@ impl Act for Buffer {
 
 					},
 
-					RenderedChunk::Tab => {
+					RenderedChunk::Shift(i) => {
 
 						g2d::color(color!(0.24, 0.27, 0.33, 1));
 						g2d::text("|");
-						g2d::translate(vec2!(tw * self.filetype.shift_width, 0));
+						g2d::translate(vec2!(tw * i, 0));
 						col += 1;
 
 					},
