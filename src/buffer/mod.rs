@@ -35,7 +35,6 @@ pub struct Buffer {
 	undo_stack: Vec<State>,
 	redo_stack: Vec<State>,
 	clipboard: ClipboardContext,
-	font: g2d::Font,
 	modified: bool,
 	conf: Conf,
 	log: Vec<String>,
@@ -51,13 +50,14 @@ struct State {
 	modified: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Conf {
 	scroll_off: u32,
 	scale: f32,
 	wrapped_chars: HashMap<char, char>,
 	line_space: i32,
 	break_chars: HashSet<char>,
+	font: g2d::Font,
 }
 
 impl Default for Conf {
@@ -96,6 +96,12 @@ impl Default for Conf {
 			wrapped_chars: wrapped_chars,
 			line_space: 2,
 			break_chars: break_chars,
+			font: g2d::Font::new(
+				gfx::Texture::from_bytes(crate::FONT),
+				crate::FONT_COLS,
+				crate::FONT_ROWS,
+				crate::FONT_CHARS,
+			),
 		};
 
 	}
@@ -204,12 +210,6 @@ impl Buffer {
 			modified: false,
 			clipboard: ClipboardProvider::new().unwrap(),
 			log: Vec::new(),
-			font: g2d::Font::new(
-				gfx::Texture::from_bytes(crate::FONT),
-				crate::FONT_COLS,
-				crate::FONT_ROWS,
-				crate::FONT_CHARS,
-			),
 			filetype: ft_test::rust(),
 			theme: Theme::default(),
 
@@ -621,7 +621,7 @@ impl Buffer {
 
 	fn get_view_rows(&self) -> u32 {
 
-		g2d::set_font(&self.font);
+		g2d::set_font(&self.conf.font);
 
 		let (w, h) = window::size().into();
 		let rows = h as f32 / ((g2d::font_height() as i32 + self.conf.line_space) as f32 * self.conf.scale);
@@ -1046,7 +1046,7 @@ impl Act for Buffer {
 	fn draw(&self) {
 
 		g2d::scale(vec2!(self.conf.scale));
-		g2d::set_font(&self.font);
+		g2d::set_font(&self.conf.font);
 
 		let (w, h) = window::size().into();
 		let tw = g2d::font_width();

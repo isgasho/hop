@@ -5,12 +5,12 @@ use regex::Regex;
 pub struct FileType {
 
 	pub name: String,
-	pub comment: String,
+	pub comment: Option<String>,
 	pub shift_width: u32,
 	pub expand_tab: bool,
 	pub indent_forward: Vec<Regex>,
 	pub indent_backward: Vec<Regex>,
-// 	pub syntax: Syntax,
+	pub syntax: Option<Syntax>,
 
 }
 
