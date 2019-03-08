@@ -17,8 +17,11 @@ use clipboard::ClipboardContext;
 use crate::Act;
 use crate::Browser;
 
-mod syntax;
 mod ft;
+mod theme;
+mod ft_test;
+
+use ft::*;
 
 pub struct Buffer {
 
@@ -34,7 +37,8 @@ pub struct Buffer {
 	font: g2d::Font,
 	modified: bool,
 	conf: Conf,
-// 	filetype: FileType,
+	log: Vec<String>,
+	filetype: FileType,
 
 }
 
@@ -50,8 +54,6 @@ pub struct Conf {
 	scroll_off: u32,
 	scale: f32,
 	wrapped_chars: HashMap<char, char>,
-	expand_tab: bool,
-	shift_width: u32,
 	line_space: i32,
 	break_chars: HashSet<char>,
 }
@@ -77,32 +79,21 @@ impl Default for Conf {
 		break_chars.insert(':');
 		break_chars.insert('"');
 		break_chars.insert('(');
+		break_chars.insert(')');
 		break_chars.insert('{');
+		break_chars.insert('}');
 		break_chars.insert('[');
+		break_chars.insert(']');
+		break_chars.insert('_');
+		break_chars.insert('-');
 		break_chars.insert('\'');
-
-		let mut forward_pats = vec![];
-
-		if let Ok(pat) = Regex::new(r"\{$") {
-			forward_pats.push(pat);
-		}
-
-		let mut backward_pats = vec![];
-
-		if let Ok(pat) = Regex::new(r"^\s*{") {
-			backward_pats.push(pat);
-		}
 
 		return Self {
 			scroll_off: 3,
 			scale: 1.5,
 			wrapped_chars: wrapped_chars,
-			expand_tab: false,
-			shift_width: 4,
 			line_space: 2,
 			break_chars: break_chars,
-// 			forward_pats: forward_pats,
-// 			backward_pats: backward_pats,
 		};
 
 	}
@@ -213,12 +204,14 @@ impl Buffer {
 			redo_stack: Vec::new(),
 			modified: false,
 			clipboard: ClipboardProvider::new().unwrap(),
+			log: Vec::new(),
 			font: g2d::Font::new(
 				gfx::Texture::from_bytes(crate::FONT),
 				crate::FONT_COLS,
 				crate::FONT_ROWS,
 				crate::FONT_CHARS,
 			),
+			filetype: ft_test::rust(),
 
 		};
 
@@ -679,13 +672,6 @@ impl Buffer {
 				indents += i;
 			}
 
-// 			for pat in &self.conf.forward_pats {
-// 				if pat.is_match(&before) {
-// 					indents += 1;
-// 					break;
-// 				}
-// 			}
-
 			for _ in 0..indents {
 				after.insert(0, '\t');
 			}
@@ -1137,7 +1123,7 @@ impl Act for Buffer {
 
 						g2d::color(color!(0.24, 0.27, 0.33, 1));
 						g2d::text("|");
-						g2d::translate(vec2!(tw * self.conf.shift_width, 0));
+						g2d::translate(vec2!(tw * self.filetype.shift_width, 0));
 						col += 1;
 
 					},

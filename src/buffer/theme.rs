@@ -1,5 +1,7 @@
 // wengwengweng
 
+use dirty::math::Color;
+
 struct Theme {
 	normal: Style,
 	comment: Style,

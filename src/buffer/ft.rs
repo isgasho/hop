@@ -1,16 +1,27 @@
 // wengwengweng
 
 use regex::Regex;
-use super::syntax::*;
 
 pub struct FileType {
-	name: String,
-	comment: String,
-	shift_width: u32,
-	expand_tab: bool,
-	forward_pats: Vec<Regex>,
-	backward_pats: Vec<Regex>,
-	syntax: Syntax,
+
+	pub name: String,
+	pub comment: String,
+	pub shift_width: u32,
+	pub expand_tab: bool,
+	pub indent_forward: Vec<Regex>,
+	pub indent_backward: Vec<Regex>,
+// 	pub syntax: Syntax,
+
+}
+
+pub struct Syntax {
+	keywords: Vec<String>,
+	contained: Vec<Container>,
+}
+
+struct Container {
+	start: String,
+	end: String,
 }
 
 impl FileType {
