@@ -13,6 +13,7 @@
 - buffer undo
 - fix buffer cursor for tabs
 - smooth scroll simulation
+- detect tabs for plain syntaxes
 
 == DONE
 - browser working

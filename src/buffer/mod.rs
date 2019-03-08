@@ -4,26 +4,21 @@ use std::fs;
 use std::path::PathBuf;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::io::Cursor;
 
 use dirty::*;
 use dirty::math::*;
 use input::Key;
 use input::Mouse;
 use input::TextInput;
-use syntect::easy::HighlightLines;
-use syntect::parsing::SyntaxSet;
-use syntect::parsing::SyntaxReference;
-use syntect::parsing::SyntaxDefinition;
-use syntect::parsing::SyntaxSetBuilder;
-use syntect::highlighting::ThemeSet;
-use syntect::highlighting::Style;
 use regex::Regex;
 use clipboard::ClipboardProvider;
 use clipboard::ClipboardContext;
 
 use crate::Act;
 use crate::Browser;
+
+mod syntax;
+mod ft;
 
 pub struct Buffer {
 
@@ -33,15 +28,13 @@ pub struct Buffer {
 	content: Vec<String>,
 	rendered: Vec<Vec<RenderedChunk>>,
 	start_line: u32,
-	syntax_set: SyntaxSet,
-	syntax: Option<SyntaxReference>,
-	theme_set: ThemeSet,
 	undo_stack: Vec<State>,
 	redo_stack: Vec<State>,
 	clipboard: ClipboardContext,
 	font: g2d::Font,
 	modified: bool,
 	conf: Conf,
+// 	filetype: FileType,
 
 }
 
@@ -61,8 +54,6 @@ pub struct Conf {
 	shift_width: u32,
 	line_space: i32,
 	break_chars: HashSet<char>,
-	forward_pats: Vec<Regex>,
-	backward_pats: Vec<Regex>,
 }
 
 impl Default for Conf {
@@ -110,8 +101,8 @@ impl Default for Conf {
 			shift_width: 4,
 			line_space: 2,
 			break_chars: break_chars,
-			forward_pats: forward_pats,
-			backward_pats: backward_pats,
+// 			forward_pats: forward_pats,
+// 			backward_pats: backward_pats,
 		};
 
 	}
@@ -161,83 +152,41 @@ enum RenderedChunk {
 
 impl RenderedChunk {
 
-	fn from_plain(text: &str) -> Self {
+	fn from_plain(text: &str) -> Vec<Self> {
 
-		return RenderedChunk::Text {
-			fg: color!(),
-			bg: color!(),
-			text: String::from(text),
-		};
+		let mut chunks = vec![];
+		let mut last = 0;
 
-	}
+		for (i, ch) in text.char_indices() {
 
-	fn from_syntect_chunk(def: Vec<(Style, &str)>) -> Vec<Self> {
+			if ch == '\t' {
 
-		let mut list: Vec<Self> = Vec::with_capacity(def.len());
+				let prev = &text[last..i];
 
-		for (style, text) in def {
+				if !prev.is_empty() {
 
-			let mut last_word = None;
-
-			for (offset, ch) in text.char_indices() {
-
-				if ch == '\t' {
-
-					if let Some(i) = last_word {
-						list.push(RenderedChunk::from_syntect(&(style, &text[i..offset])));
-						last_word = None;
-					}
-
-					list.push(RenderedChunk::Tab);
-
-				} else {
-
-					if last_word.is_none() {
-						last_word = Some(offset);
-					}
+					chunks.push(RenderedChunk::Text {
+						fg: color!(),
+						bg: color!(),
+						text: text[last..i].to_owned(),
+					});
 
 				}
 
-			}
+				last = i + 1;
+				chunks.push(RenderedChunk::Tab);
 
-			if let Some(i) = last_word {
-				list.push(RenderedChunk::from_syntect(&(style, &text[i..text.len()])));
 			}
 
 		}
 
-		return list;
+		chunks.push(RenderedChunk::Text {
+			fg: color!(),
+			bg: color!(),
+			text: text[last..text.len()].to_owned(),
+		});
 
-	}
-
-	fn from_syntect(def: &(Style, &str)) -> Self {
-
-		let sty = def.0;
-		let text = def.1;
-		let fg = sty.foreground;
-		let bg = sty.background;
-
-		let fg = color!(
-			fg.r as f32 / 255.0,
-			fg.g as f32 / 255.0,
-			fg.b as f32 / 255.0,
-			fg.a as f32 / 255.0
-		);
-
-		let bg = color!(
-			bg.r as f32 / 255.0,
-			bg.g as f32 / 255.0,
-			bg.b as f32 / 255.0,
-			bg.a as f32 / 255.0
-		);
-
-		return RenderedChunk::Text {
-
-			fg: fg,
-			bg: bg,
-			text: String::from(text),
-
-		};
+		return chunks;
 
 	}
 
@@ -247,37 +196,9 @@ pub enum Error {
 	IO,
 }
 
-fn load_syntaxes(builder: &mut SyntaxSetBuilder, syntaxes: &[&str]) {
-
-	for syn in syntaxes {
-		if let Ok(def) = SyntaxDefinition::load_from_str(syn, true, None) {
-			builder.add(def);
-		}
-	}
-
-}
-
 impl Buffer {
 
 	pub fn from_file(path: PathBuf) -> Result<Self, Error> {
-
-		let mut set = SyntaxSetBuilder::new();
-
-		load_syntaxes(&mut set, &[
-			include_str!("res/syntax/rust.yaml"),
-			include_str!("res/syntax/markdown.yaml"),
-			include_str!("res/syntax/lua.yaml"),
-			include_str!("res/syntax/toml.yaml"),
-		]);
-
-		let set = set.build();
-		let mut syntax = None;
-
-		if let Some(ext) = path.extension() {
-			if let Some(ext) = ext.to_str() {
-				syntax = set.find_syntax_by_extension(ext).map(Clone::clone);
-			}
-		}
 
 		let mut buf = Self {
 
@@ -287,9 +208,6 @@ impl Buffer {
 			rendered: Vec::with_capacity(1024),
 			cursor: Pos::new(1, 1),
 			start_line: 1,
-			syntax_set: set,
-			syntax: syntax,
-			theme_set: ThemeSet::load_defaults(),
 			conf: Conf::default(),
 			undo_stack: Vec::new(),
 			redo_stack: Vec::new(),
@@ -328,24 +246,10 @@ impl Buffer {
 		let (start, end) = self.view_range();
 		let (start, end) = (start as usize, end as usize);
 
-		if let Some(syntax) = &self.syntax {
-
-			let mut h = HighlightLines::new(&syntax, &self.theme_set.themes["base16-ocean.dark"]);
-
-			self.rendered = self.content[start - 1..end]
-				.iter()
-				.map(|l| h.highlight(l, &self.syntax_set))
-				.map(RenderedChunk::from_syntect_chunk)
-				.collect();
-
-		} else {
-
-			self.rendered = self.content[start - 1..end]
-				.iter()
-				.map(|l| vec![RenderedChunk::from_plain(l)])
-				.collect();
-
-		}
+		self.rendered = self.content[start - 1..end]
+			.iter()
+			.map(|l| RenderedChunk::from_plain(l))
+			.collect();
 
 	}
 
@@ -711,13 +615,11 @@ impl Buffer {
 
 	fn start_browser(&self) {
 
-		let path = PathBuf::from(&self.path);
-
-		if let Some(parent) = path.parent() {
+		if let Some(parent) = self.path.parent() {
 
 			let mut browser = Browser::new(parent.to_path_buf());
 
-			browser.select_item(&path);
+			browser.select_item(&self.path);
 			crate::start(browser);
 
 		}
@@ -754,12 +656,11 @@ impl Buffer {
 				self.push();
 			}
 
-			cur.col += 1;
 			self.set_line(cur.line, &content);
 
 		}
 
-		self.move_to(cur);
+		self.move_right();
 
 	}
 
@@ -778,12 +679,12 @@ impl Buffer {
 				indents += i;
 			}
 
-			for pat in &self.conf.forward_pats {
-				if pat.is_match(&before) {
-					indents += 1;
-					break;
-				}
-			}
+// 			for pat in &self.conf.forward_pats {
+// 				if pat.is_match(&before) {
+// 					indents += 1;
+// 					break;
+// 				}
+// 			}
 
 			for _ in 0..indents {
 				after.insert(0, '\t');
