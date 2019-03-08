@@ -22,6 +22,7 @@ mod theme;
 mod ft_test;
 
 use ft::*;
+use theme::*;
 
 pub struct Buffer {
 
@@ -39,6 +40,7 @@ pub struct Buffer {
 	conf: Conf,
 	log: Vec<String>,
 	filetype: FileType,
+	theme: Theme,
 
 }
 
@@ -134,8 +136,7 @@ pub struct Range {
 #[derive(Debug, Clone)]
 enum RenderedChunk {
 	Text {
-		fg: Color,
-		bg: Color,
+		style: Style,
 		text: String,
 	},
 	Tab,
@@ -157,8 +158,7 @@ impl RenderedChunk {
 				if !prev.is_empty() {
 
 					chunks.push(RenderedChunk::Text {
-						fg: color!(),
-						bg: color!(),
+						style: Style::new(color!(0.75, 0.77, 0.81, 1), color!(0), FontStyle::Normal),
 						text: text[last..i].to_owned(),
 					});
 
@@ -172,8 +172,7 @@ impl RenderedChunk {
 		}
 
 		chunks.push(RenderedChunk::Text {
-			fg: color!(),
-			bg: color!(),
+			style: Style::new(color!(0.75, 0.77, 0.81, 1), color!(0), FontStyle::Normal),
 			text: text[last..text.len()].to_owned(),
 		});
 
@@ -212,6 +211,7 @@ impl Buffer {
 				crate::FONT_CHARS,
 			),
 			filetype: ft_test::rust(),
+			theme: Theme::default(),
 
 		};
 
@@ -1052,7 +1052,7 @@ impl Act for Buffer {
 		let tw = g2d::font_width();
 		let th = g2d::font_height() as i32 + self.conf.line_space;
 
-		g2d::color(color!(0.11, 0.14, 0.19, 1));
+		g2d::color(self.theme.background);
 		g2d::rect(vec2!(w, h));
 
 		// viewport
@@ -1069,7 +1069,7 @@ impl Act for Buffer {
 			if real_line == self.cursor.line {
 
 				g2d::push();
-				g2d::color(color!(1, 1, 1, 0.04));
+				g2d::color(self.theme.cursor_line);
 				g2d::translate(vec2!(-12, 0));
 				g2d::rect(vec2!(w as f32 / self.conf.scale, th));
 				g2d::pop();
@@ -1093,7 +1093,7 @@ impl Act for Buffer {
 
 						g2d::push();
 						g2d::translate(vec2!(diff * tw as i32, 0));
-						g2d::color(color!(1, 1, 1, 0.4));
+						g2d::color(self.theme.cursor);
 
 						match self.mode {
 							Mode::Normal => g2d::rect(vec2!(tw, th)),
@@ -1110,9 +1110,9 @@ impl Act for Buffer {
 
 				match chunk {
 
-					RenderedChunk::Text { fg, bg, text, } => {
+					RenderedChunk::Text { style, text, } => {
 
-						g2d::color(*fg);
+						g2d::color(style.color);
 						g2d::text(&text);
 						g2d::translate(vec2!(tw * text.len() as u32, 0));
 						col += text.len();
@@ -1135,7 +1135,7 @@ impl Act for Buffer {
 			if real_line == self.cursor.line && !cursor_drawn {
 
 				g2d::push();
-				g2d::color(color!(1, 1, 1, 0.4));
+				g2d::color(self.theme.cursor);
 
 				match self.mode {
 					Mode::Normal => g2d::rect(vec2!(tw, th)),
