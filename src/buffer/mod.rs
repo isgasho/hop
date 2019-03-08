@@ -54,7 +54,6 @@ struct State {
 pub struct Conf {
 	scroll_off: u32,
 	scale: f32,
-	wrapped_chars: HashMap<char, char>,
 	line_space: i32,
 	break_chars: HashSet<char>,
 	font: g2d::Font,
@@ -63,14 +62,6 @@ pub struct Conf {
 impl Default for Conf {
 
 	fn default() -> Self {
-
-		let mut wrapped_chars = HashMap::new();
-
-		wrapped_chars.insert('(', ')');
-		wrapped_chars.insert('\'', '\'');
-		wrapped_chars.insert('"', '"');
-		wrapped_chars.insert('{', '}');
-		wrapped_chars.insert('[', ']');
 
 		let mut break_chars = HashSet::new();
 
@@ -93,7 +84,6 @@ impl Default for Conf {
 		return Self {
 			scroll_off: 3,
 			scale: 1.5,
-			wrapped_chars: wrapped_chars,
 			line_space: 2,
 			break_chars: break_chars,
 			font: g2d::Font::new(
@@ -219,6 +209,10 @@ impl Buffer {
 
 		return Ok(buf);
 
+	}
+
+	fn log(&mut self, info: &str) {
+		self.log.push(info.to_owned());
 	}
 
 	fn view_range(&self) -> (u32, u32) {
@@ -638,7 +632,7 @@ impl Buffer {
 
 			let mut content = line.clone();
 
-			if let Some(end_char) = self.conf.wrapped_chars.get(&ch) {
+			if let Some(end_char) = self.filetype.pairs.get(&ch) {
 				content.insert(cur.col as usize - 1, ch);
 				content.insert(cur.col as usize, *end_char);
 			} else {
@@ -735,7 +729,7 @@ impl Buffer {
 				if let Some(ch) = self.char_at(Pos::new(self.cursor.line, self.cursor.col - 1)) {
 
 					let nch = self.char_at(self.cursor);
-					let end_char = self.conf.wrapped_chars.get(&ch).map(Clone::clone);
+					let end_char = self.filetype.pairs.get(&ch).map(Clone::clone);
 
 					if nch.is_some() && nch == end_char {
 						content.remove(pos.col as usize - 1);

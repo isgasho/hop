@@ -1,8 +1,18 @@
 // wengwengweng
 
+use std::collections::HashMap;
+
 use super::ft::*;
 
 pub fn rust() -> FileType {
+
+	let mut pairs = HashMap::new();
+
+	pairs.insert('(', ')');
+	pairs.insert('\'', '\'');
+	pairs.insert('"', '"');
+	pairs.insert('{', '}');
+	pairs.insert('[', ']');
 
 	return FileType {
 
@@ -12,6 +22,7 @@ pub fn rust() -> FileType {
 		expand_tab: false,
 		indent_forward: vec![],
 		indent_backward: vec![],
+		pairs: pairs,
 		syntax: None,
 
 	}
