@@ -171,42 +171,6 @@ impl Buffer {
 
 	}
 
-	fn render_line(&self, text: &str) -> Vec<RenderedChunk> {
-
-		let mut chunks = vec![];
-		let mut last = 0;
-
-		for (i, ch) in text.char_indices() {
-
-			if ch == '\t' {
-
-				let prev = &text[last..i];
-
-				if !prev.is_empty() {
-
-					chunks.push(RenderedChunk::Text {
-						style: self.theme.normal.clone(),
-						text: text[last..i].to_owned(),
-					});
-
-				}
-
-				last = i + 1;
-				chunks.push(RenderedChunk::Shift(self.filetype.shift_width));
-
-			}
-
-		}
-
-		chunks.push(RenderedChunk::Text {
-			style: self.theme.normal.clone(),
-			text: text[last..text.len()].to_owned(),
-		});
-
-		return chunks;
-
-	}
-
 	fn log(&mut self, info: &str) {
 		self.log.push(info.to_owned());
 	}
@@ -231,7 +195,41 @@ impl Buffer {
 
 		self.rendered = self.content[start - 1..end]
 			.iter()
-			.map(|l| self.render_line(l))
+			.map(|text| {
+
+				let mut chunks = vec![];
+				let mut last = 0;
+
+				for (i, ch) in text.char_indices() {
+
+					if ch == '\t' {
+
+						let prev = &text[last..i];
+
+						if !prev.is_empty() {
+
+							chunks.push(RenderedChunk::Text {
+								style: self.theme.normal.clone(),
+								text: text[last..i].to_owned(),
+							});
+
+						}
+
+						last = i + 1;
+						chunks.push(RenderedChunk::Shift(self.filetype.shift_width));
+
+					}
+
+				}
+
+				chunks.push(RenderedChunk::Text {
+					style: self.theme.normal.clone(),
+					text: text[last..text.len()].to_owned(),
+				});
+
+				return chunks;
+
+			})
 			.collect();
 
 	}
@@ -271,35 +269,27 @@ impl Buffer {
 		return self.modified;
 	}
 
-	fn get_line(&self, ln: u32) -> Option<&String> {
+	fn get_line_at(&self, ln: u32) -> Option<&String> {
 		return self.content.get(ln as usize - 1);
 	}
 
-	fn set_line(&mut self, ln: u32, content: &str) {
+	fn get_line(&self) -> Option<&String> {
+		return self.get_line_at(self.cursor.line);
+	}
 
+	fn set_line_at(&mut self, ln: u32, content: &str) {
 		if let Some(line) = self.content.get_mut(ln as usize - 1) {
-
 			*line = String::from(content);
-			self.modified = true;
-
 		}
-
 	}
 
-	fn push_line(&mut self, ln: u32, content: &str) {
-
-		if let Some(line) = self.content.get_mut(ln as usize - 1) {
-
-			line.push_str(content);
-			self.modified = true;
-
-		}
-
+	fn set_line(&mut self, content: &str) {
+		self.set_line_at(self.cursor.line, content);
 	}
 
-	fn next_word(&self, pos: Pos) -> Option<Pos> {
+	fn next_word_at(&self, pos: Pos) -> Option<Pos> {
 
-		if let Some(line) = self.get_line(pos.line) {
+		if let Some(line) = self.get_line_at(pos.line) {
 			if pos.col < line.len() as u32 {
 				for (i, ch) in line[pos.col as usize..].char_indices() {
 					if self.conf.break_chars.contains(&ch) {
@@ -316,9 +306,13 @@ impl Buffer {
 
 	}
 
-	fn prev_word(&self, pos: Pos) -> Option<Pos> {
+	fn next_word(&self) -> Option<Pos> {
+		return self.next_word_at(self.cursor);
+	}
 
-		if let Some(line) = self.get_line(pos.line) {
+	fn prev_word_at(&self, pos: Pos) -> Option<Pos> {
+
+		if let Some(line) = self.get_line_at(pos.line) {
 			if pos.col < line.len() as u32 {
 				for (i, ch) in line[..pos.col as usize].char_indices().rev() {
 					if self.conf.break_chars.contains(&ch) {
@@ -335,30 +329,45 @@ impl Buffer {
 
 	}
 
+	fn prev_word(&self) -> Option<Pos> {
+		return self.prev_word_at(self.cursor);
+	}
+
 	fn adjust_cursor(&mut self) {
 		self.move_to(self.cursor);
 	}
 
-	fn delete_line(&mut self, ln: u32) {
+	fn del_line_at(&mut self, ln: u32) {
 
-		self.push();
 		self.content.remove(ln as usize - 1);
-		self.modified = true;
 		self.adjust_cursor();
 
 	}
 
-	fn insert_line(&mut self, ln: u32) {
+	fn del_line(&mut self) {
+
+		self.push();
+		self.del_line_at(self.cursor.line);
+
+	}
+
+	fn insert_line_at(&mut self, ln: u32) {
 
 		self.content.insert(ln as usize - 1, String::new());
-		self.modified = true;
-		self.move_down();
+		self.adjust_cursor();
+
+	}
+
+	fn insert_line(&mut self) {
+
+		self.push();
+		self.insert_line_at(self.cursor.line);
 
 	}
 
 	fn copy_line(&mut self, ln: u32) {
 
-		if let Some(content) = self.get_line(ln) {
+		if let Some(content) = self.get_line_at(ln) {
 			self.clipboard.set_contents(content.clone()).unwrap();
 		}
 
@@ -421,7 +430,7 @@ impl Buffer {
 			});
 		}
 
-		if let Some(line) = self.get_line(pos.line) {
+		if let Some(line) = self.get_line_at(pos.line) {
 
 			let len = line.len() as u32 + 1;
 
@@ -501,13 +510,13 @@ impl Buffer {
 	}
 
 	fn move_prev_word(&mut self) {
-		if let Some(pos) = self.prev_word(self.cursor) {
+		if let Some(pos) = self.prev_word() {
 			self.move_to(pos);
 		}
 	}
 
 	fn move_next_word(&mut self) {
-		if let Some(pos) = self.next_word(self.cursor) {
+		if let Some(pos) = self.next_word() {
 			self.move_to(pos);
 		}
 	}
@@ -548,7 +557,7 @@ impl Buffer {
 
 		let mut pos = self.cursor.clone();
 
-		if let Some(line) = self.get_line(pos.line) {
+		if let Some(line) = self.get_line_at(pos.line) {
 
 			let mut index = 0;
 
@@ -581,7 +590,7 @@ impl Buffer {
 
 		let mut pos = self.cursor.clone();
 
-		if let Some(line) = self.get_line(pos.line) {
+		if let Some(line) = self.get_line_at(pos.line) {
 			pos.col = line.len() as u32;
 		}
 
@@ -620,39 +629,57 @@ impl Buffer {
 
 	}
 
-	fn insert(&mut self, ch: char) {
+	fn insert_str_at(&mut self, pos: Pos, text: &str) {
 
-		let mut cur = self.cursor.clone();
+		if let Some(line) = self.get_line_at(pos.line) {
 
-		if let Some(line) = self.get_line(cur.line) {
+			let mut content = line.clone();
+
+			content.insert_str(pos.col as usize - 1, text);
+			self.push();
+			self.set_line_at(pos.line, &content);
+
+		}
+
+	}
+
+	fn insert_str(&mut self, text: &str) {
+		self.insert_str_at(self.cursor, text);
+	}
+
+	fn insert_at(&mut self, pos: Pos, ch: char) {
+
+		if let Some(line) = self.get_line_at(pos.line) {
 
 			let mut content = line.clone();
 
 			if let Some(end_char) = self.filetype.pairs.get(&ch) {
-				content.insert(cur.col as usize - 1, ch);
-				content.insert(cur.col as usize, *end_char);
+				content.insert(pos.col as usize - 1, ch);
+				content.insert(pos.col as usize, *end_char);
 			} else {
-				content.insert(cur.col as usize - 1, ch);
+				content.insert(pos.col as usize - 1, ch);
 			}
 
 			if self.conf.break_chars.contains(&ch) {
 				self.push();
 			}
 
-			self.set_line(cur.line, &content);
+			self.set_line_at(pos.line, &content);
 
 		}
 
+	}
+
+	fn insert(&mut self, ch: char) {
+
+		self.insert_at(self.cursor, ch);
 		self.move_right();
 
 	}
 
-	fn break_line(&mut self, cur: Pos) {
+	fn break_line_at(&mut self, cur: Pos) {
 
-		self.push();
-		self.insert_line(cur.line + 1);
-
-		if let Some(line) = self.get_line(cur.line).map(Clone::clone) {
+		if let Some(line) = self.get_line_at(cur.line).map(Clone::clone) {
 
 			let before = String::from(&line[0..cur.col as usize - 1]);
 			let mut after = String::from(&line[cur.col as usize - 1..line.len()]);
@@ -666,17 +693,24 @@ impl Buffer {
 				after.insert(0, '\t');
 			}
 
-			self.set_line(cur.line, &before);
-			self.set_line(cur.line + 1, &after);
+			self.push();
+			self.insert_line_at(cur.line + 1);
+			self.set_line_at(cur.line, &before);
+			self.set_line_at(cur.line + 1, &after);
+			self.move_down();
 			self.move_line_start();
 
 		}
 
 	}
 
+	fn break_line(&mut self) {
+		self.break_line_at(self.cursor);
+	}
+
 	fn get_indents(&mut self, ln: u32) -> Option<u32> {
 
-		if let Some(line) = self.get_line(ln) {
+		if let Some(line) = self.get_line_at(ln) {
 
 			let mut indents = 0;
 
@@ -696,23 +730,23 @@ impl Buffer {
 
 	}
 
-	fn delete(&mut self) {
+	fn del(&mut self) {
 
 		let mut pos = self.cursor.clone();
 
-		if let Some(line) = self.get_line(pos.line) {
+		if let Some(line) = self.get_line_at(pos.line) {
 
 			let before = &line[0..pos.col as usize - 1];
 
 			if before.is_empty() {
 
-				if let Some(prev_line) = self.get_line(pos.line - 1).map(Clone::clone) {
+				if let Some(prev_line) = self.get_line_at(pos.line - 1).map(Clone::clone) {
 
 					let mut content = prev_line.clone();
 
 					content.push_str(line);
-					self.delete_line(pos.line);
-					self.set_line(pos.line - 1, &content);
+					self.del_line_at(pos.line);
+					self.set_line_at(pos.line - 1, &content);
 					pos.line -= 1;
 					pos.col = prev_line.len() as u32 + 1;
 
@@ -734,7 +768,7 @@ impl Buffer {
 				}
 
 				content.remove(pos.col as usize - 2);
-				self.set_line(pos.line, &content);
+				self.set_line_at(pos.line, &content);
 				pos.col -= 1;
 
 			}
@@ -747,7 +781,7 @@ impl Buffer {
 
 	fn char_at(&self, pos: Pos) -> Option<char> {
 
-		if let Some(content) = self.get_line(pos.line) {
+		if let Some(content) = self.get_line_at(pos.line) {
 			return content.chars().nth(pos.col as usize - 1);
 		} else {
 			return None;
@@ -755,11 +789,11 @@ impl Buffer {
 
 	}
 
-	fn delete_word(&mut self) {
+	fn del_word(&mut self) {
 		// ...
 	}
 
-	fn delete_range(&mut self, r: Range) {
+	fn del_range(&mut self, r: Range) {
 		// ...
 	}
 
@@ -815,7 +849,7 @@ impl Act for Buffer {
 								'j' => self.move_down(),
 								'k' => self.move_up(),
 								'u' => self.undo(),
-								'd' => self.delete_line(self.cursor.line),
+								'd' => self.del_line(),
 								'<' => self.move_line_start_insert(),
 								'>' => self.move_line_end_insert(),
 								':' => self.start_command(),
@@ -925,9 +959,9 @@ impl Act for Buffer {
 						TextInput::Backspace => {
 
 							if input::key_down(Key::LAlt) {
-								self.delete_word();
+								self.del_word();
 							} else {
-								self.delete();
+								self.del();
 							}
 
 						},
@@ -937,7 +971,7 @@ impl Act for Buffer {
 							if input::key_down(Key::LAlt) {
 								// ..
 							} else {
-								self.break_line(self.cursor);
+								self.break_line();
 							}
 
 						},
@@ -1119,21 +1153,6 @@ impl Act for Buffer {
 					},
 
 				}
-
-			}
-
-			if real_line == self.cursor.line && !cursor_drawn {
-
-				g2d::push();
-				g2d::color(self.theme.cursor);
-
-				match self.mode {
-					Mode::Normal => g2d::rect(vec2!(tw, th)),
-					Mode::Insert => g2d::rect(vec2!(tw / 4, th)),
-					_ => {},
-				}
-
-				g2d::pop();
 
 			}
 
