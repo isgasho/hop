@@ -339,8 +339,12 @@ impl Buffer {
 
 	fn del_line_at(&mut self, ln: u32) {
 
-		self.content.remove(ln as usize - 1);
-		self.adjust_cursor();
+		if ln as usize <= self.content.len() {
+
+			self.content.remove(ln as usize - 1);
+			self.adjust_cursor();
+
+		}
 
 	}
 
