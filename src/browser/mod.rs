@@ -19,18 +19,24 @@ pub struct Browser {
 	selection: Selection,
 	markings: Vec<usize>,
 	font: g2d::Font,
-	text_tex: gfx::Texture,
-	folder_tex: gfx::Texture,
-	selection_tex: gfx::Texture,
-	back_tex: gfx::Texture,
-	image_tex: gfx::Texture,
 	previewing: bool,
+	textures: HashMap<TexFlag, gfx::Texture>,
 	previewed_images: HashMap<PathBuf, gfx::Texture>,
 
 }
 
+#[derive(Hash, Clone, Copy, PartialEq, Eq)]
+enum TexFlag {
+	Folder,
+	Selection,
+	Text,
+	Image,
+	Back,
+}
+
 pub struct Conf {
 	ignores: FilterList,
+	scale: f32,
 }
 
 struct Item {
@@ -38,6 +44,7 @@ struct Item {
 	kind: ItemType,
 }
 
+#[derive(Hash, Clone, Copy, PartialEq, Eq)]
 enum ItemType {
 	Folder,
 	Text,
@@ -58,6 +65,7 @@ impl Default for Conf {
 	fn default() -> Self {
 		return Self {
 			ignores: FilterList::new(&[".DS_Store", ".git"]),
+			scale: 2.0,
 		};
 	}
 }
@@ -92,19 +100,23 @@ impl Browser {
 
 	pub fn new(path: PathBuf) -> Self {
 
+		let mut textures = HashMap::new();
+
+		textures.insert(TexFlag::Text, gfx::Texture::from_bytes(include_bytes!("res/text.png")));
+		textures.insert(TexFlag::Image, gfx::Texture::from_bytes(include_bytes!("res/image.png")));
+		textures.insert(TexFlag::Folder, gfx::Texture::from_bytes(include_bytes!("res/folder.png")));
+		textures.insert(TexFlag::Back, gfx::Texture::from_bytes(include_bytes!("res/back.png")));
+		textures.insert(TexFlag::Selection, gfx::Texture::from_bytes(include_bytes!("res/selection.png")));
+
 		let mut browser = Browser {
 			listings: Vec::new(),
 			path: PathBuf::new(),
 			conf: Conf::default(),
 			selection: Selection::Back,
 			markings: Vec::new(),
-			text_tex: gfx::Texture::from_bytes(include_bytes!("res/text.png")),
-			folder_tex: gfx::Texture::from_bytes(include_bytes!("res/folder.png")),
-			image_tex: gfx::Texture::from_bytes(include_bytes!("res/image.png")),
-			back_tex: gfx::Texture::from_bytes(include_bytes!("res/back.png")),
-			selection_tex: gfx::Texture::from_bytes(include_bytes!("res/selection.png")),
 			previewing: false,
 			previewed_images: HashMap::new(),
+			textures: textures,
 			font: g2d::Font::new(
 				gfx::Texture::from_bytes(crate::FONT),
 				crate::FONT_COLS,
@@ -348,11 +360,12 @@ impl Act for Browser {
 	fn draw(&self) {
 
 		let (w, h) = window::size().into();
+		let (w, h) = (w as f32 / self.conf.scale, h as f32 / self.conf.scale);
 		let cols = 4;
 		let size = 108;
 
 		// all
-		g2d::scale(vec2!(2));
+		g2d::scale(vec2!(self.conf.scale));
 		g2d::set_font(&self.font);
 
 		// background
@@ -367,7 +380,7 @@ impl Act for Browser {
 		// back
 		g2d::push();
 // 		g2d::translate(vec2!(size));
-		g2d::draw(&self.back_tex, rect!(0, 0, 1, 1));
+		g2d::draw(&self.textures[&TexFlag::Back], rect!(0, 0, 1, 1));
 		g2d::pop();
 
 		// items
@@ -383,9 +396,9 @@ impl Act for Browser {
 
 			match item.kind {
 
-				ItemType::Folder => g2d::draw(&self.folder_tex, rect!(0, 0, 1, 1)),
-				ItemType::Text => g2d::draw(&self.text_tex, rect!(0, 0, 1, 1)),
-				ItemType::Image => g2d::draw(&self.image_tex, rect!(0, 0, 1, 1)),
+				ItemType::Folder => g2d::draw(&self.textures[&TexFlag::Folder], rect!(0, 0, 1, 1)),
+				ItemType::Text => g2d::draw(&self.textures[&TexFlag::Text], rect!(0, 0, 1, 1)),
+				ItemType::Image => g2d::draw(&self.textures[&TexFlag::Image], rect!(0, 0, 1, 1)),
 				_ => {},
 
 			}
@@ -405,7 +418,7 @@ impl Act for Browser {
 			g2d::push();
 			g2d::translate(vec2!(x, y) * size as f32 - vec2!(22));
 			g2d::scale(vec2!((app::time() * 6.0).sin() * 0.02 + 1.0));
-			g2d::draw(&self.selection_tex, rect!(0, 0, 1, 1));
+			g2d::draw(&self.textures[&TexFlag::Selection], rect!(0, 0, 1, 1));
 			g2d::pop();
 
 		} else if let Selection::Back = self.selection {
@@ -413,7 +426,7 @@ impl Act for Browser {
 			g2d::push();
 			g2d::translate(vec2!(-22));
 			g2d::scale(vec2!((app::time() * 6.0).sin() * 0.02 + 1.0));
-			g2d::draw(&self.selection_tex, rect!(0, 0, 1, 1));
+			g2d::draw(&self.textures[&TexFlag::Selection], rect!(0, 0, 1, 1));
 			g2d::pop();
 
 		}
@@ -438,7 +451,7 @@ impl Act for Browser {
 						let th = tex.height();
 
 						g2d::push();
-						g2d::translate((vec2!(w, h) / 2.0 - vec2!(tw, th)) / 2.0);
+						g2d::translate((vec2!(w, h) - vec2!(tw, th)) / 2.0);
 						g2d::draw(tex, rect!(0, 0, 1, 1));
 						g2d::pop();
 
@@ -449,6 +462,20 @@ impl Act for Browser {
 			}
 
 		}
+
+		// bar
+		let bar_height = 23;
+
+		g2d::push();
+		g2d::translate(vec2!(0, h - bar_height as f32));
+		g2d::color(color!(1, 0, 0.5, 1));
+		g2d::rect(vec2!(w, 23));
+		g2d::color(color!(0, 0, 0, 1));
+		g2d::line(vec2!(0, 0), vec2!(w, 0));
+		g2d::color(color!());
+		g2d::translate(vec2!(8, (bar_height - g2d::font_height()) / 2));
+		g2d::text(&pathbuf_to_str(&self.path));
+		g2d::pop();
 
 	}
 
