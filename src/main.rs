@@ -9,6 +9,7 @@ use dirty::*;
 
 mod buffer;
 mod browser;
+mod views;
 
 use buffer::Buffer;
 use browser::Browser;
@@ -104,7 +105,7 @@ fn main() {
 	window::init("HoP", 960, 640);
 
 	ctx_init(HoP::new());
-	start(browser::view::View::new(Browser::new(PathBuf::from("/Users/t/Things/hop"))));
+	start(views::browser::View::new(Browser::new(PathBuf::from("/Users/t/Things/hop"))));
 
 	app::run(|| {
 

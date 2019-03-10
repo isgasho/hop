@@ -21,6 +21,7 @@ pub struct Conf {
 
 pub struct Item {
 	pub path: PathBuf,
+	pub name: String,
 	pub kind: ItemType,
 }
 
@@ -200,6 +201,7 @@ impl Browser {
 						if p.is_dir() {
 
 							dirs.push(Item {
+								name: name.to_owned(),
 								path: p,
 								kind: ItemType::Folder,
 							});
@@ -217,6 +219,7 @@ impl Browser {
 							}
 
 							files.push(Item {
+								name: name.to_owned(),
 								path: p,
 								kind: kind,
 							});

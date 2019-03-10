@@ -7,14 +7,15 @@ use dirty::*;
 use input::Key;
 
 use crate::Act;
+use crate::browser::*;
 use crate::Buffer;
-use super::*;
 
 pub struct ViewConf {
 	scale: f32,
 	size: u32,
 	margin: u32,
 	bar_height: u32,
+	font: g2d::Font,
 }
 
 impl Default for ViewConf {
@@ -24,6 +25,12 @@ impl Default for ViewConf {
 			scale: 2.0,
 			size: 104,
 			bar_height: 23,
+			font: g2d::Font::new(
+				gfx::Texture::from_bytes(crate::FONT),
+				crate::FONT_COLS,
+				crate::FONT_ROWS,
+				crate::FONT_CHARS,
+			),
 		};
 	}
 }
@@ -45,7 +52,6 @@ enum TexFlag {
 pub struct View {
 
 	browser: Browser,
-	font: g2d::Font,
 	textures: HashMap<TexFlag, gfx::Texture>,
 	previewed_images: HashMap<PathBuf, gfx::Texture>,
 	conf: ViewConf,
@@ -71,13 +77,7 @@ impl View {
 			textures: textures,
 			conf: ViewConf::default(),
 			mode: Mode::Normal,
-			font: g2d::Font::new(
-				gfx::Texture::from_bytes(crate::FONT),
-				crate::FONT_COLS,
-				crate::FONT_ROWS,
-				crate::FONT_CHARS,
-			),
-		};;
+		};
 
 	}
 
@@ -94,7 +94,7 @@ impl View {
 						browser.cd(item.path.clone());
 					} else if let ItemType::Text = item.kind {
 						if let Ok(buf) = Buffer::from_file(item.path.clone()) {
-							crate::start(buf);
+							crate::start(crate::views::buffer::View::new(buf));
 						}
 					}
 				}
@@ -173,7 +173,7 @@ impl Act for View {
 
 		// all
 		g2d::scale(vec2!(self.conf.scale));
-		g2d::set_font(&self.font);
+		g2d::set_font(&self.conf.font);
 
 		// background
 		g2d::push();
@@ -198,8 +198,6 @@ impl Act for View {
 			g2d::push();
 			g2d::translate(vec2!(x, y) * size as f32);
 
-			let name = utils::get_fname(&item.path).unwrap_or("");
-
 			match item.kind {
 
 				ItemType::Folder => g2d::draw(&self.textures[&TexFlag::Folder], rect!(0, 0, 1, 1)),
@@ -211,7 +209,7 @@ impl Act for View {
 
 			g2d::color(color!(0, 0, 0, 1));
 			g2d::translate(vec2!(12, 48));
-			g2d::text(name);
+			g2d::text(&item.name);
 			g2d::pop();
 
 		}

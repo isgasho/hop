@@ -1,6 +1,5 @@
 // wengwengweng
 
-pub mod view;
 mod browser;
 mod utils;
 
