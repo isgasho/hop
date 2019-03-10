@@ -104,7 +104,7 @@ fn main() {
 	window::init("HoP", 960, 640);
 
 	ctx_init(HoP::new());
-	start(Browser::new(PathBuf::from("/Users/t/Things/hop")));
+	start(browser::view::View::new(Browser::new(PathBuf::from("/Users/t/Things/hop"))));
 
 	app::run(|| {
 

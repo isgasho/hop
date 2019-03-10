@@ -616,7 +616,7 @@ impl Buffer {
 			let mut browser = Browser::new(parent.to_path_buf());
 
 			browser.select_item(&self.path);
-			crate::start(browser);
+			crate::start(crate::browser::view::View::new(browser));
 
 		}
 
