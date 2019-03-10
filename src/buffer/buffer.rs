@@ -4,7 +4,6 @@ use std::fs;
 use std::path::PathBuf;
 use std::collections::HashSet;
 
-use dirty::*;
 use clipboard::ClipboardProvider;
 use clipboard::ClipboardContext;
 
@@ -19,7 +18,6 @@ pub struct Buffer {
 	pub path: PathBuf,
 	pub content: Vec<String>,
 	pub rendered: Vec<Vec<RenderedChunk>>,
-	pub start_line: u32,
 	pub undo_stack: Vec<State>,
 	pub redo_stack: Vec<State>,
 	pub clipboard: ClipboardContext,
@@ -41,9 +39,6 @@ pub struct State {
 #[derive(Clone)]
 pub struct Conf {
 	break_chars: HashSet<char>,
-	scroll_off: u32,
-	scale: f32,
-	line_space: i32,
 }
 
 pub enum Event {
@@ -76,9 +71,6 @@ impl Default for Conf {
 		break_chars.insert('\'');
 
 		return Self {
-			scroll_off: 3,
-			scale: 1.5,
-			line_space: 2,
 			break_chars: break_chars,
 		};
 
@@ -141,7 +133,6 @@ impl Buffer {
 			content: Vec::new(),
 			rendered: Vec::with_capacity(1024),
 			cursor: Pos::new(1, 1),
-			start_line: 1,
 			conf: Conf::default(),
 			undo_stack: Vec::new(),
 			redo_stack: Vec::new(),
@@ -163,23 +154,7 @@ impl Buffer {
 		self.log.push(info.to_owned());
 	}
 
-	pub fn view_range(&self) -> (u32, u32) {
-
-		let start = self.start_line;
-		let mut end = start + self.get_view_rows();
-
-		if end > self.content.len() as u32 {
-			end = self.content.len() as u32;
-		}
-
-		return (start, end);
-
-	}
-
-	pub fn render(&mut self) {
-
-		let (start, end) = self.view_range();
-		let (start, end) = (start as usize, end as usize);
+	pub fn render(&mut self, start: usize, end: usize) {
 
 		self.rendered = self.content[start - 1..end]
 			.iter()
@@ -230,8 +205,6 @@ impl Buffer {
 				.lines()
 				.map(|st| String::from(st))
 				.collect();
-
-			self.render();
 
 			return Ok(());
 
@@ -390,26 +363,6 @@ impl Buffer {
 
 	}
 
-	pub fn scroll_down(&mut self) {
-
-		if self.start_line < self.content.len() as u32 {
-			if self.cursor.line - self.start_line >= self.conf.scroll_off {
-				self.start_line += 1;
-			}
-		}
-
-	}
-
-	pub fn scroll_up(&mut self) {
-
-		if self.start_line > 1 {
-			if self.cursor.line < self.start_line + self.get_view_rows() - self.conf.scroll_off {
-				self.start_line -= 1;
-			}
-		}
-
-	}
-
 	pub fn move_to(&mut self, pos: Pos) {
 
 		if pos.col < 1 {
@@ -451,21 +404,6 @@ impl Buffer {
 		}
 
 		self.cursor = pos;
-
-		let top = self.cursor.line as i32 - self.conf.scroll_off as i32;
-		let bottom = self.cursor.line as i32 - self.get_view_rows() as i32 + self.conf.scroll_off as i32 + 1;
-
-		if self.start_line as i32 > top {
-			if top > 0 {
-				self.start_line = top as u32;
-			} else {
-				self.start_line = 1;
-			}
-		}
-
-		if (self.start_line as i32) < bottom && bottom < self.content.len() as i32 {
-			self.start_line = bottom as u32;
-		}
 
 	}
 
@@ -598,18 +536,6 @@ impl Buffer {
 
 		self.move_line_end();
 		self.start_insert();
-
-	}
-
-	// to frontend
-	pub fn get_view_rows(&self) -> u32 {
-
-		let fh = 7;
-
-		let (w, h) = window::size().into();
-		let rows = h as f32 / ((fh as i32 + self.conf.line_space) as f32 * self.conf.scale);
-
-		return rows as u32;
 
 	}
 

@@ -51,6 +51,50 @@ impl View {
 		};
 	}
 
+	pub fn view_range(&self) -> (u32, u32) {
+
+		let start = self.start_line;
+		let mut end = start + self.get_view_rows();
+
+		if end > self.buffer.content.len() as u32 {
+			end = self.buffer.content.len() as u32;
+		}
+
+		return (start, end);
+
+	}
+
+	pub fn get_view_rows(&self) -> u32 {
+
+		g2d::set_font(&self.conf.font);
+
+		let (w, h) = window::size().into();
+		let rows = h as f32 / ((g2d::font_height() as i32 + self.conf.line_space) as f32 * self.conf.scale);
+
+		return rows as u32;
+
+	}
+
+	pub fn scroll_down(&mut self) {
+
+		if self.start_line < self.buffer.content.len() as u32 {
+			if self.buffer.cursor.line - self.start_line >= self.conf.scroll_off {
+				self.start_line += 1;
+			}
+		}
+
+	}
+
+	pub fn scroll_up(&mut self) {
+
+		if self.start_line > 1 {
+			if self.buffer.cursor.line < self.start_line + self.get_view_rows() - self.conf.scroll_off {
+				self.start_line -= 1;
+			}
+		}
+
+	}
+
 	pub fn start_browser(&self) {
 
 		if let Some(parent) = self.buffer.path.parent() {
@@ -109,11 +153,11 @@ impl Act for View {
 						},
 
 						TextInput::Up => {
-							self.buffer.scroll_up();
+							self.scroll_up();
 						},
 
 						TextInput::Down => {
-							self.buffer.scroll_down();
+							self.scroll_down();
 						},
 
 						TextInput::Left => {
@@ -152,11 +196,11 @@ impl Act for View {
 
 						if scroll.y > 0 {
 							for _ in 0..scroll.y.abs() {
-								self.buffer.scroll_up();
+								self.scroll_up();
 							}
 						} else if scroll.y < 0 {
 							for _ in 0..scroll.y.abs() {
-								self.buffer.scroll_down();
+								self.scroll_down();
 							}
 						}
 
@@ -219,11 +263,11 @@ impl Act for View {
 						},
 
 						TextInput::Up => {
-							self.buffer.scroll_up();
+							self.scroll_up();
 						},
 
 						TextInput::Down => {
-							self.buffer.scroll_down();
+							self.scroll_down();
 						},
 
 						TextInput::Left => {
@@ -245,9 +289,9 @@ impl Act for View {
 				if let Some(scroll) = input::scroll_delta() {
 
 					if scroll.y > 0 {
-						self.buffer.scroll_up();
+						self.scroll_up();
 					} else if scroll.y < 0 {
-						self.buffer.scroll_down();
+						self.scroll_down();
 					}
 
 				}
@@ -301,7 +345,25 @@ impl Act for View {
 
 		}
 
-		self.buffer.render();
+		// scroll by cursor
+		let top = self.buffer.cursor.line as i32 - self.conf.scroll_off as i32;
+		let bottom = self.buffer.cursor.line as i32 - self.get_view_rows() as i32 + self.conf.scroll_off as i32 + 1;
+
+		if self.start_line as i32 > top {
+			if top > 0 {
+				self.start_line = top as u32;
+			} else {
+				self.start_line = 1;
+			}
+		}
+
+		if (self.start_line as i32) < bottom && bottom < self.buffer.content.len() as i32 {
+			self.start_line = bottom as u32;
+		}
+
+		let (start, end) = self.view_range();
+
+		self.buffer.render(start as usize, end as usize);
 
 	}
 
@@ -328,7 +390,7 @@ impl Act for View {
 
 		for (ln, line) in buf.rendered.iter().enumerate() {
 
-			let real_line = ln as u32 + buf.start_line;
+			let real_line = ln as u32 + self.start_line;
 
 			// cursor line
 			if real_line == buf.cursor.line {
