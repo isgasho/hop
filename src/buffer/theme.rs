@@ -1,7 +1,7 @@
 // wengwengweng
 
-use dirty::color;
-use dirty::math::Color;
+use dirty::*;
+use dirty::math::*;
 
 pub struct Theme {
 
@@ -49,33 +49,33 @@ impl Default for Theme {
 
 	fn default() -> Self {
 
-		let black = color!(0.11, 0.14, 0.19, 1);
-		let white = color!(0.78, 0.80, 0.83, 1);
-		let grey = color!(0.24, 0.27, 0.33, 1);
-		let yellow = color!(0.98, 0.78, 0.39, 1);
-		let green = color!(0.60, 0.78, 0.58, 1);
-		let purple = color!(0.77, 0.58, 0.77, 1);
-		let orange = color!(0.98, 0.57, 0.34, 1);
-		let cyan = color!(0.38, 0.70, 0.70, 1);
-		let brown = color!(0.67, 0.47, 0.40, 1);
-		let red = color!(0.93, 0.37, 0.40, 1);
-		let blue = color!(0.40, 0.60, 0.80, 1);
-		let none = color!(1, 1, 1, 0);
+		let black = Color::new(0.11, 0.14, 0.19, 1.0);
+		let white = Color::new(0.78, 0.80, 0.83, 1.0);
+		let grey = Color::new(0.24, 0.27, 0.33, 1.0);
+		let yellow = Color::new(0.98, 0.78, 0.39, 1.0);
+		let green = Color::new(0.60, 0.78, 0.58, 1.0);
+		let purple = Color::new(0.77, 0.58, 0.77, 1.0);
+		let orange = Color::new(0.98, 0.57, 0.34, 1.0);
+		let cyan = Color::new(0.38, 0.70, 0.70, 1.0);
+		let brown = Color::new(0.67, 0.47, 0.40, 1.0);
+		let red = Color::new(0.93, 0.37, 0.40, 1.0);
+		let blue = Color::new(0.40, 0.60, 0.80, 1.0);
+		let none = Color::new(1.0, 1.0, 1.0, 0.0);
 
 		return Self {
 
 			normal: Style::new(white, none, FontStyle::Normal),
 			comment: Style::new(grey, none, FontStyle::Normal),
-			string: Style::new(green, color!(0), FontStyle::Normal),
-			keyword: Style::new(purple, color!(0), FontStyle::Normal),
-			types: Style::new(yellow, color!(0), FontStyle::Bold),
-			number: Style::new(orange, color!(0), FontStyle::Normal),
-			ident: Style::new(blue, color!(0), FontStyle::Normal),
+			string: Style::new(green, Color::all(0.0), FontStyle::Normal),
+			keyword: Style::new(purple, Color::all(0.0), FontStyle::Normal),
+			types: Style::new(yellow, Color::all(0.0), FontStyle::Bold),
+			number: Style::new(orange, Color::all(0.0), FontStyle::Normal),
+			ident: Style::new(blue, Color::all(0.0), FontStyle::Normal),
 			search: Style::new(white, yellow, FontStyle::Bold),
 			highlight: Style::new(white, yellow, FontStyle::Bold),
 			background: black,
-			cursor: color!(1, 1, 1, 0.4),
-			cursor_line: color!(1, 1, 1, 0.04),
+			cursor: Color::new(1.0, 1.0, 1.0, 0.4),
+			cursor_line: Color::new(1.0, 1.0, 1.0, 0.04),
 
 		};
 	}

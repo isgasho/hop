@@ -7,8 +7,10 @@ use input::Mouse;
 use input::TextInput;
 
 use crate::Act;
-use crate::Browser;
-use crate::buffer::*;
+use hop::browser::Browser;
+use hop::buffer::*;
+
+include!("res/font.rs");
 
 pub struct ViewConf {
 	scroll_off: u32,
@@ -24,10 +26,10 @@ impl Default for ViewConf {
 			scale: 1.5,
 			line_space: 2,
 			font: g2d::Font::new(
-				gfx::Texture::from_bytes(crate::FONT),
-				crate::FONT_COLS,
-				crate::FONT_ROWS,
-				crate::FONT_CHARS,
+				gfx::Texture::from_bytes(FONT),
+				FONT_COLS,
+				FONT_ROWS,
+				FONT_CHARS,
 			),
 		};
 	}

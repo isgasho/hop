@@ -7,8 +7,10 @@ use dirty::*;
 use input::Key;
 
 use crate::Act;
-use crate::browser::*;
-use crate::Buffer;
+use hop::buffer::Buffer;
+use hop::browser::*;
+
+include!("res/font.rs");
 
 pub struct ViewConf {
 	scale: f32,
@@ -26,10 +28,10 @@ impl Default for ViewConf {
 			size: 104,
 			bar_height: 23,
 			font: g2d::Font::new(
-				gfx::Texture::from_bytes(crate::FONT),
-				crate::FONT_COLS,
-				crate::FONT_ROWS,
-				crate::FONT_CHARS,
+				gfx::Texture::from_bytes(FONT),
+				FONT_COLS,
+				FONT_ROWS,
+				FONT_CHARS,
 			),
 		};
 	}

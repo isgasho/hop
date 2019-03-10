@@ -7,14 +7,9 @@ use std::collections::BTreeMap;
 use gctx::ctx;
 use dirty::*;
 
-mod buffer;
-mod browser;
 mod views;
 
-use buffer::Buffer;
-use browser::Browser;
-
-include!("res/font.rs");
+use hop::browser::Browser;
 
 trait Act: Any {
 	fn update(&mut self);
