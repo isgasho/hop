@@ -1077,6 +1077,7 @@ impl Act for Buffer {
 		g2d::set_font(&self.conf.font);
 
 		let (w, h) = window::size().into();
+		let (w, h) = (w as f32 / self.conf.scale, h as f32 / self.conf.scale);
 		let tw = g2d::font_width();
 		let th = g2d::font_height() as i32 + self.conf.line_space;
 
@@ -1099,7 +1100,7 @@ impl Act for Buffer {
 				g2d::push();
 				g2d::color(self.theme.cursor_line);
 				g2d::translate(vec2!(-12, 0));
-				g2d::rect(vec2!(w as f32 / self.conf.scale, th));
+				g2d::rect(vec2!(w, th));
 				g2d::pop();
 
 			}

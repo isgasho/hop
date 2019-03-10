@@ -14,6 +14,7 @@ pub struct ViewConf {
 	scale: f32,
 	size: u32,
 	margin: u32,
+	bar_height: u32,
 }
 
 impl Default for ViewConf {
@@ -22,6 +23,7 @@ impl Default for ViewConf {
 			margin: 32,
 			scale: 2.0,
 			size: 104,
+			bar_height: 23,
 		};
 	}
 }
@@ -149,7 +151,7 @@ impl Act for View {
 
 				if let ItemType::Image = item.kind {
 					if !self.previewed_images.contains_key(&item.path) {
-						self.previewed_images.insert(item.path.clone(), gfx::Texture::from_file(&utils::pathbuf_to_str(&item.path)));
+						self.previewed_images.insert(item.path.clone(), gfx::Texture::from_file(&format!("{}", item.path.display())));
 					}
 				}
 
@@ -196,7 +198,7 @@ impl Act for View {
 			g2d::push();
 			g2d::translate(vec2!(x, y) * size as f32);
 
-			let name = utils::get_fname(&item.path);
+			let name = utils::get_fname(&item.path).unwrap_or("");
 
 			match item.kind {
 
@@ -209,7 +211,7 @@ impl Act for View {
 
 			g2d::color(color!(0, 0, 0, 1));
 			g2d::translate(vec2!(12, 48));
-			g2d::text(&name);
+			g2d::text(name);
 			g2d::pop();
 
 		}
@@ -268,7 +270,7 @@ impl Act for View {
 		}
 
 		// bar
-		let bar_height = 23;
+		let bar_height = self.conf.bar_height;
 
 		g2d::push();
 		g2d::translate(vec2!(0, h - bar_height as f32));
@@ -278,7 +280,7 @@ impl Act for View {
 		g2d::line(vec2!(0, 0), vec2!(w, 0));
 		g2d::color(color!());
 		g2d::translate(vec2!(8, (bar_height - g2d::font_height()) / 2));
-		g2d::text(&utils::pathbuf_to_str(&browser.path));
+		g2d::text(&format!("{}", browser.path.display()));
 		g2d::pop();
 
 	}

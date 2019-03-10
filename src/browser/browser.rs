@@ -193,34 +193,37 @@ impl Browser {
 				.filter_map(Result::ok)
 				.map(|e| e.path()) {
 
-				if !self.conf.ignores.check(&utils::get_fname(&p)) {
+				if let Some(name) = utils::get_fname(&p) {
 
-					if p.is_dir() {
+					if !self.conf.ignores.check(name) {
 
-						dirs.push(Item {
-							path: p,
-							kind: ItemType::Folder,
-						});
+						if p.is_dir() {
 
-					} else if p.is_file() {
+							dirs.push(Item {
+								path: p,
+								kind: ItemType::Folder,
+							});
 
-						let mut kind = ItemType::Text;
+						} else if p.is_file() {
 
-						if let Some(ext) = p.extension() {
+							let mut kind = ItemType::Text;
 
-							if ext == "png" {
-								kind = ItemType::Image;
+							if let Some(ext) = p.extension() {
+
+								if ext == "png" {
+									kind = ItemType::Image;
+								}
+
 							}
+
+							files.push(Item {
+								path: p,
+								kind: kind,
+							});
 
 						}
 
-						files.push(Item {
-							path: p,
-							kind: kind,
-						});
-
 					}
-
 				}
 
 			}
