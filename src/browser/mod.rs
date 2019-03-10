@@ -19,7 +19,7 @@ pub struct Browser {
 	selection: Selection,
 	markings: Vec<usize>,
 	font: g2d::Font,
-	previewing: bool,
+	mode: Mode,
 	textures: HashMap<TexFlag, gfx::Texture>,
 	previewed_images: HashMap<PathBuf, gfx::Texture>,
 
@@ -44,6 +44,11 @@ pub struct Conf {
 struct Item {
 	path: PathBuf,
 	kind: ItemType,
+}
+
+enum Mode {
+	Normal,
+	Preview,
 }
 
 #[derive(Hash, Clone, Copy, PartialEq, Eq)]
@@ -118,7 +123,7 @@ impl Browser {
 			conf: Conf::default(),
 			selection: Selection::Back,
 			markings: Vec::new(),
-			previewing: false,
+			mode: Mode::Normal,
 			previewed_images: HashMap::new(),
 			textures: textures,
 			font: g2d::Font::new(
@@ -316,7 +321,13 @@ impl Browser {
 	}
 
 	fn toggle_preview(&mut self) {
-		self.previewing = !self.previewing;
+
+		if let Mode::Normal = self.mode {
+			self.mode = Mode::Preview;
+		} else if let Mode::Preview = self.mode {
+			self.mode = Mode::Normal;
+		}
+
 	}
 
 }
@@ -345,7 +356,7 @@ impl Act for Browser {
 			self.move_up();
 		}
 
-		if self.previewing {
+		if let Mode::Preview = self.mode {
 
 			if let Some(item) = self.selected() {
 
@@ -439,7 +450,7 @@ impl Act for Browser {
 		g2d::pop();
 
 		// preview
-		if self.previewing {
+		if let Mode::Preview = self.mode {
 
 			if let Some(item) = self.selected() {
 
