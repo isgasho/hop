@@ -7,26 +7,28 @@ use dirty::*;
 use input::Key;
 
 use crate::Act;
-use super::utils;
-use super::ItemType;
-use super::Mode;
-use super::Browser;
-use super::Selection;
+use crate::Buffer;
+use super::*;
 
-pub struct Conf {
+pub struct ViewConf {
 	scale: f32,
 	size: u32,
 	margin: u32,
 }
 
-impl Default for Conf {
+impl Default for ViewConf {
 	fn default() -> Self {
 		return Self {
 			margin: 32,
-			scale: 1.5,
-			size: 112,
+			scale: 2.0,
+			size: 104,
 		};
 	}
+}
+
+pub enum Mode {
+	Normal,
+	Preview,
 }
 
 #[derive(Hash, Clone, Copy, PartialEq, Eq)]
@@ -44,7 +46,8 @@ pub struct View {
 	font: g2d::Font,
 	textures: HashMap<TexFlag, gfx::Texture>,
 	previewed_images: HashMap<PathBuf, gfx::Texture>,
-	conf: Conf,
+	conf: ViewConf,
+	mode: Mode,
 
 }
 
@@ -60,20 +63,57 @@ impl View {
 		textures.insert(TexFlag::Back, gfx::Texture::from_bytes(include_bytes!("res/back.png")));
 		textures.insert(TexFlag::Selection, gfx::Texture::from_bytes(include_bytes!("res/selection.png")));
 
-		let mut view = View {
+		return Self {
 			browser: browser,
 			previewed_images: HashMap::new(),
 			textures: textures,
-			conf: Conf::default(),
+			conf: ViewConf::default(),
+			mode: Mode::Normal,
 			font: g2d::Font::new(
 				gfx::Texture::from_bytes(crate::FONT),
 				crate::FONT_COLS,
 				crate::FONT_ROWS,
 				crate::FONT_CHARS,
 			),
-		};
+		};;
 
-		return view;
+	}
+
+	pub fn enter(&mut self) {
+
+		let browser = &mut self.browser;
+
+		match browser.selection {
+
+			Selection::Item(i) => {
+
+				if let Some(item) = browser.listings.get(i) {
+					if let ItemType::Folder = item.kind {
+						browser.cd(item.path.clone());
+					} else if let ItemType::Text = item.kind {
+						if let Ok(buf) = Buffer::from_file(item.path.clone()) {
+							crate::start(buf);
+						}
+					}
+				}
+
+			},
+
+			Selection::Back => {
+				browser.back();
+			}
+
+		}
+
+	}
+
+	pub fn toggle_preview(&mut self) {
+
+		if let Mode::Normal = self.mode {
+			self.mode = Mode::Preview;
+		} else if let Mode::Preview = self.mode {
+			self.mode = Mode::Normal;
+		}
 
 	}
 
@@ -88,7 +128,7 @@ impl Act for View {
 		}
 
 		if input::key_pressed(Key::Return) {
-			self.browser.enter();
+			self.enter();
 		}
 
 		if input::key_pressed(Key::J) {
@@ -96,14 +136,14 @@ impl Act for View {
 		}
 
 		if input::key_pressed(Key::Space) {
-			self.browser.toggle_preview();
+			self.toggle_preview();
 		}
 
 		if input::key_pressed(Key::K) {
 			self.browser.move_up();
 		}
 
-		if let Mode::Preview = self.browser.mode {
+		if let Mode::Preview = self.mode {
 
 			if let Some(item) = self.browser.selected() {
 
@@ -198,7 +238,7 @@ impl Act for View {
 		g2d::pop();
 
 		// preview
-		if let Mode::Preview = browser.mode {
+		if let Mode::Preview = self.mode {
 
 			if let Some(item) = browser.selected() {
 
