@@ -37,6 +37,8 @@ enum TexFlag {
 pub struct Conf {
 	ignores: FilterList,
 	scale: f32,
+	size: u32,
+	margin: u32,
 }
 
 struct Item {
@@ -65,7 +67,9 @@ impl Default for Conf {
 	fn default() -> Self {
 		return Self {
 			ignores: FilterList::new(&[".DS_Store", ".git"]),
-			scale: 2.0,
+			margin: 32,
+			scale: 1.5,
+			size: 112,
 		};
 	}
 }
@@ -361,8 +365,10 @@ impl Act for Browser {
 
 		let (w, h) = window::size().into();
 		let (w, h) = (w as f32 / self.conf.scale, h as f32 / self.conf.scale);
-		let cols = 4;
-		let size = 108;
+		let margin = self.conf.margin;
+		let size = self.conf.size;
+		let cols = (w as u32 - margin * 2) / size;
+		let rmargin = (w as u32 - cols * size) / 2;
 
 		// all
 		g2d::scale(vec2!(self.conf.scale));
@@ -375,19 +381,18 @@ impl Act for Browser {
 		g2d::pop();
 
 		g2d::push();
-		g2d::translate(vec2!(32));
+		g2d::translate(vec2!(rmargin, 32));
 
 		// back
 		g2d::push();
-// 		g2d::translate(vec2!(size));
 		g2d::draw(&self.textures[&TexFlag::Back], rect!(0, 0, 1, 1));
 		g2d::pop();
 
 		// items
 		for (i, item) in self.listings.iter().enumerate() {
 
-			let x = (i + 1) % cols;
-			let y = (i + 1) / cols;
+			let x = (i + 1) % cols as usize;
+			let y = (i + 1) / cols as usize;
 
 			g2d::push();
 			g2d::translate(vec2!(x, y) * size as f32);
@@ -412,11 +417,11 @@ impl Act for Browser {
 
 		if let Selection::Item(i) = self.selection {
 
-			let x = (i + 1) % cols;
-			let y = (i + 1) / cols;
+			let x = (i + 1) % cols as usize;
+			let y = (i + 1) / cols as usize;
 
 			g2d::push();
-			g2d::translate(vec2!(x, y) * size as f32 - vec2!(22));
+			g2d::translate(vec2!(x, y) * self.conf.size as f32 - vec2!(22));
 			g2d::scale(vec2!((app::time() * 6.0).sin() * 0.02 + 1.0));
 			g2d::draw(&self.textures[&TexFlag::Selection], rect!(0, 0, 1, 1));
 			g2d::pop();
@@ -439,7 +444,7 @@ impl Act for Browser {
 			if let Some(item) = self.selected() {
 
 				g2d::push();
-				g2d::color(color!(0, 0, 0, 0.7));
+				g2d::color(color!(0, 0, 0, 0.8));
 				g2d::rect(vec2!(w, h));
 				g2d::pop();
 
