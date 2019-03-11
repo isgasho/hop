@@ -110,6 +110,7 @@ pub enum Mode {
 	Insert,
 	Command,
 	Select(Vec<Range>),
+	Search,
 }
 
 #[derive(Clone, Debug)]
@@ -124,7 +125,7 @@ pub enum RenderedChunk {
 		span: Span,
 		text: String,
 	},
-	Shift(u32),
+	Shift,
 }
 
 pub enum Error {
@@ -187,7 +188,7 @@ impl Buffer {
 						}
 
 						last = i + 1;
-						chunks.push(RenderedChunk::Shift(self.filetype.shift_width));
+						chunks.push(RenderedChunk::Shift);
 
 					}
 
@@ -492,6 +493,16 @@ impl Buffer {
 		}
 
 		self.mode = Mode::Command;
+
+	}
+
+	pub fn start_search(&mut self) {
+
+		if let Mode::Search = self.mode {
+			return;
+		}
+
+		self.mode = Mode::Search;
 
 	}
 

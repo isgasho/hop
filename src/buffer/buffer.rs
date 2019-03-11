@@ -20,6 +20,8 @@ pub struct ViewConf {
 	line_space: i32,
 	font: g2d::Font,
 	theme: Theme,
+	line_num: bool,
+	shift_width: u32,
 }
 
 impl Default for ViewConf {
@@ -29,6 +31,8 @@ impl Default for ViewConf {
 			scale: 1.5,
 			line_space: 2,
 			theme: Theme::default(),
+			line_num: false,
+			shift_width: 4,
 			font: g2d::Font::new(
 				gfx::Texture::from_bytes(FONT),
 				FONT_COLS,
@@ -134,6 +138,7 @@ impl Act for View {
 								'<' => self.buffer.move_line_start_insert(),
 								'>' => self.buffer.move_line_end_insert(),
 								':' => self.buffer.start_command(),
+								'?' => self.buffer.start_search(),
 								_ => {},
 							}
 
@@ -342,6 +347,14 @@ impl Act for View {
 				// ...
 			},
 
+			Mode::Search => {
+
+				if input::key_pressed(Key::Escape) {
+					self.buffer.start_normal();
+				}
+
+			},
+
 		}
 
 		// scroll by cursor
@@ -450,11 +463,11 @@ impl Act for View {
 
 					},
 
-					RenderedChunk::Shift(i) => {
+					RenderedChunk::Shift => {
 
 						g2d::color(color!(0.24, 0.27, 0.33, 1));
 						g2d::text("|");
-						g2d::translate(vec2!(tw * i, 0));
+						g2d::translate(vec2!(tw * self.conf.shift_width, 0));
 						col += 1;
 
 					},
