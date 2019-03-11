@@ -101,13 +101,8 @@ impl View {
 
 	pub fn start_browser(&self) {
 
-		if let Some(parent) = self.buffer.path.parent() {
-
-			let mut browser = Browser::new(parent.to_path_buf());
-
-			browser.select_item(&self.buffer.path);
+		if let Ok(browser) = Browser::from_file(self.buffer.path.clone()) {
 			crate::start(crate::browser::View::new(browser));
-
 		}
 
 	}

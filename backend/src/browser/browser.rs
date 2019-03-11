@@ -35,7 +35,7 @@ pub enum ItemType {
 }
 
 pub enum Error {
-	// ...
+	IO,
 }
 
 pub enum Selection {
@@ -95,8 +95,26 @@ impl Browser {
 
 	}
 
-	pub fn from_file() -> Result<Self, Error> {
-		unimplemented!("");
+	pub fn from_file(path: PathBuf) -> Result<Self, ()> {
+
+		if path.is_file() {
+
+			if let Some(parent) = path.parent() {
+
+				let mut browser = Self::new(parent.to_path_buf());
+
+				browser.select_item(&path);
+
+				return Ok(browser);
+
+			} else {
+				return Err(());
+			}
+
+		} else {
+			return Err(());
+		}
+
 	}
 
 	pub fn cd(&mut self, path: PathBuf) {
