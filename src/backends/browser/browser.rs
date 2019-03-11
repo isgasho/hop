@@ -19,13 +19,14 @@ pub struct Conf {
 	pub ignores: FilterList,
 }
 
+#[derive(Hash, Clone, PartialEq, Eq, Debug)]
 pub struct Item {
 	pub path: PathBuf,
 	pub name: String,
 	pub kind: ItemType,
 }
 
-#[derive(Hash, Clone, Copy, PartialEq, Eq)]
+#[derive(Hash, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ItemType {
 	Folder,
 	Text,
@@ -164,7 +165,7 @@ impl Browser {
 
 		match self.selection {
 			Selection::Back => {
-				self.selection = Selection::Item(0);
+				self.select_index(0);
 			}
 			Selection::Item(i) => {
 				self.select_index(i + 1);

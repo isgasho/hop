@@ -47,7 +47,7 @@ impl Default for Theme {
 
 	fn default() -> Self {
 
-		let black = Color::new(0.11, 0.14, 0.19, 1.0);
+		let black = Color::new(0.10, 0.13, 0.18, 1.0);
 		let white = Color::new(0.78, 0.80, 0.83, 1.0);
 		let grey = Color::new(0.24, 0.27, 0.33, 1.0);
 		let yellow = Color::new(0.98, 0.78, 0.39, 1.0);

@@ -1,5 +1,6 @@
 // wengwengweng
 
-pub mod buffer;
-pub mod browser;
+mod backends;
+
+pub use backends::*;
 

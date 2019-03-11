@@ -24,8 +24,8 @@ impl Default for ViewConf {
 	fn default() -> Self {
 		return Self {
 			margin: 32,
-			scale: 2.0,
-			size: 104,
+			scale: 1.5,
+			size: 112,
 			bar_height: 23,
 			font: g2d::Font::new(
 				gfx::Texture::from_bytes(FONT),
