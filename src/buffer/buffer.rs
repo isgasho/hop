@@ -9,7 +9,6 @@ use clipboard::ClipboardContext;
 
 use super::*;
 use ft::*;
-use theme::*;
 
 pub struct Buffer {
 
@@ -25,7 +24,6 @@ pub struct Buffer {
 	pub conf: Conf,
 	pub log: Vec<String>,
 	pub filetype: FileType,
-	pub theme: Theme,
 
 }
 
@@ -39,6 +37,17 @@ pub struct State {
 #[derive(Clone)]
 pub struct Conf {
 	break_chars: HashSet<char>,
+}
+
+#[derive(Clone, Hash, PartialEq, Eq, Debug)]
+pub enum Span {
+	Normal,
+	Comment,
+	String,
+	Keyword,
+	Type,
+	Number,
+	Ident,
 }
 
 pub enum Event {
@@ -112,7 +121,7 @@ pub struct Range {
 #[derive(Debug, Clone)]
 pub enum RenderedChunk {
 	Text {
-		style: Style,
+		span: Span,
 		text: String,
 	},
 	Shift(u32),
@@ -140,7 +149,6 @@ impl Buffer {
 			clipboard: ClipboardProvider::new().unwrap(),
 			log: Vec::new(),
 			filetype: ft_test::rust(),
-			theme: Theme::default(),
 
 		};
 
@@ -172,7 +180,7 @@ impl Buffer {
 						if !prev.is_empty() {
 
 							chunks.push(RenderedChunk::Text {
-								style: self.theme.normal.clone(),
+								span: Span::Normal,
 								text: text[last..i].to_owned(),
 							});
 
@@ -186,7 +194,7 @@ impl Buffer {
 				}
 
 				chunks.push(RenderedChunk::Text {
-					style: self.theme.normal.clone(),
+					span: Span::Normal,
 					text: text[last..text.len()].to_owned(),
 				});
 

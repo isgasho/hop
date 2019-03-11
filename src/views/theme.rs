@@ -3,15 +3,13 @@
 use dirty::*;
 use dirty::math::*;
 
+use hop::buffer::Span;
+use std::collections::HashMap;
+
 pub struct Theme {
 
+	pub spans: HashMap<Span, Style>,
 	pub normal: Style,
-	pub comment: Style,
-	pub string: Style,
-	pub keyword: Style,
-	pub types: Style,
-	pub number: Style,
-	pub ident: Style,
 	pub search: Style,
 	pub highlight: Style,
 	pub background: Color,
@@ -62,15 +60,20 @@ impl Default for Theme {
 		let blue = Color::new(0.40, 0.60, 0.80, 1.0);
 		let none = Color::new(1.0, 1.0, 1.0, 0.0);
 
+		let mut spans = HashMap::new();
+
+		spans.insert(Span::Normal, Style::new(white, none, FontStyle::Normal));
+		spans.insert(Span::Comment, Style::new(grey, none, FontStyle::Normal));
+		spans.insert(Span::String, Style::new(green, none, FontStyle::Normal));
+		spans.insert(Span::Keyword, Style::new(purple, none, FontStyle::Normal));
+		spans.insert(Span::Type, Style::new(yellow, none, FontStyle::Bold));
+		spans.insert(Span::Number, Style::new(orange, none, FontStyle::Bold));
+		spans.insert(Span::Ident, Style::new(blue, none, FontStyle::Bold));
+
 		return Self {
 
+			spans: spans,
 			normal: Style::new(white, none, FontStyle::Normal),
-			comment: Style::new(grey, none, FontStyle::Normal),
-			string: Style::new(green, Color::all(0.0), FontStyle::Normal),
-			keyword: Style::new(purple, Color::all(0.0), FontStyle::Normal),
-			types: Style::new(yellow, Color::all(0.0), FontStyle::Bold),
-			number: Style::new(orange, Color::all(0.0), FontStyle::Normal),
-			ident: Style::new(blue, Color::all(0.0), FontStyle::Normal),
 			search: Style::new(white, yellow, FontStyle::Bold),
 			highlight: Style::new(white, yellow, FontStyle::Bold),
 			background: black,

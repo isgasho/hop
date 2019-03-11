@@ -10,6 +10,8 @@ use crate::Act;
 use hop::browser::Browser;
 use hop::buffer::*;
 
+use super::theme::*;
+
 include!("res/font.rs");
 
 pub struct ViewConf {
@@ -17,6 +19,7 @@ pub struct ViewConf {
 	scale: f32,
 	line_space: i32,
 	font: g2d::Font,
+	theme: Theme,
 }
 
 impl Default for ViewConf {
@@ -25,6 +28,7 @@ impl Default for ViewConf {
 			scroll_off: 3,
 			scale: 1.5,
 			line_space: 2,
+			theme: Theme::default(),
 			font: g2d::Font::new(
 				gfx::Texture::from_bytes(FONT),
 				FONT_COLS,
@@ -379,7 +383,7 @@ impl Act for View {
 		let tw = g2d::font_width();
 		let th = g2d::font_height() as i32 + self.conf.line_space;
 
-		g2d::color(buf.theme.background);
+		g2d::color(self.conf.theme.background);
 		g2d::rect(vec2!(w, h));
 
 		// viewport
@@ -396,7 +400,7 @@ impl Act for View {
 			if real_line == buf.cursor.line {
 
 				g2d::push();
-				g2d::color(buf.theme.cursor_line);
+				g2d::color(self.conf.theme.cursor_line);
 				g2d::translate(vec2!(-12, 0));
 				g2d::rect(vec2!(w, th));
 				g2d::pop();
@@ -420,7 +424,7 @@ impl Act for View {
 
 						g2d::push();
 						g2d::translate(vec2!(diff * tw as i32, 0));
-						g2d::color(buf.theme.cursor);
+						g2d::color(self.conf.theme.cursor);
 
 						match buf.mode {
 							Mode::Normal => g2d::rect(vec2!(tw, th)),
@@ -437,9 +441,14 @@ impl Act for View {
 
 				match chunk {
 
-					RenderedChunk::Text { style, text, } => {
+					RenderedChunk::Text { span, text, } => {
 
-						g2d::color(style.color);
+						if let Some(style) = self.conf.theme.spans.get(span) {
+							g2d::color(style.color);
+						} else {
+							g2d::color(self.conf.theme.normal.color);
+						}
+
 						g2d::text(&text);
 						g2d::translate(vec2!(tw * text.len() as u32, 0));
 						col += text.len();
