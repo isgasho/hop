@@ -26,6 +26,3 @@ Hanging-out Place
 *text editor*
 ![2](misc/2.png)
 
-### notes
-- all the tools are seperated backend and frontend, feel free to take my stuff and use your own visuals.
-

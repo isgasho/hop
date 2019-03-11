@@ -7,13 +7,7 @@ version = "0.1.0"
 authors = ["t <voygagaga@outlook.com>"]
 edition = "2018"
 
-[workspace]
-members = [
-	"backend",
-]
-
 [dependencies]
-gctx = "0.1.0"
 dirty = { git = "https://github.com/slmjkdbtl/DIRTY" }
-worksuite = { path = "backend" }
+worksuite = { path = "../backend" }
 

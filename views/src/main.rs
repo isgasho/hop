@@ -7,10 +7,9 @@ use std::collections::BTreeMap;
 use gctx::ctx;
 use dirty::*;
 
-pub mod browser;
-pub mod buffer;
+mod views;
 
-use worksuite::browser::Browser;
+use hop::browser::Browser;
 
 trait Act: Any {
 	fn update(&mut self);
@@ -101,7 +100,7 @@ fn main() {
 	window::init("HoP", 960, 640);
 
 	ctx_init(HoP::new());
-	start(browser::View::new(Browser::new(PathBuf::from("/Users/t/Things/hop"))));
+	start(views::browser::View::new(Browser::new(PathBuf::from("/Users/t/Things/hop"))));
 
 	app::run(|| {
 

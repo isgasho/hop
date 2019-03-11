@@ -25,7 +25,7 @@ impl Default for ViewConf {
 		return Self {
 			margin: 32,
 			scale: 1.5,
-			size: 112,
+			size: 114,
 			bar_height: 23,
 			font: g2d::Font::new(
 				gfx::Texture::from_bytes(FONT),
@@ -249,19 +249,33 @@ impl Act for View {
 				g2d::rect(vec2!(w, h));
 				g2d::pop();
 
-				if let ItemType::Image = item.kind {
+				match item.kind {
 
-					if let Some(tex) = self.previewed_images.get(&item.path) {
+					ItemType::Image => {
 
-						let tw = tex.width();
-						let th = tex.height();
+						if let Some(tex) = self.previewed_images.get(&item.path) {
 
-						g2d::push();
-						g2d::translate((vec2!(w, h) - vec2!(tw, th)) / 2.0);
-						g2d::draw(tex, rect!(0, 0, 1, 1));
-						g2d::pop();
+							let tw = tex.width();
+							let th = tex.height();
 
-					}
+							g2d::push();
+							g2d::translate((vec2!(w, h) - vec2!(tw, th)) / 2.0);
+							g2d::draw(tex, rect!(0, 0, 1, 1));
+							g2d::translate(vec2!(0, th + 12));
+							g2d::text(&format!("{} x {}", tw, th));
+							g2d::pop();
+
+						}
+
+					},
+
+					ItemType::Folder => {
+
+						// ...
+
+					},
+
+					_ => {},
 
 				}
 
