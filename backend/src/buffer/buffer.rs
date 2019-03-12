@@ -339,6 +339,11 @@ impl Buffer {
 		if ln as usize <= self.content.len() {
 
 			self.content.remove(ln as usize - 1);
+
+			if self.content.is_empty() {
+				self.content = vec!["".to_owned()];
+			}
+
 			self.adjust_cursor();
 
 		}
@@ -399,17 +404,17 @@ impl Buffer {
 
 	}
 
-	pub fn move_to(&mut self, pos: Pos) {
+	pub fn cursor_bound(&self, pos: Pos) -> Pos {
 
 		if pos.col < 1 {
-			return self.move_to(Pos {
+			return self.cursor_bound(Pos {
 				col: 1,
 				.. pos
 			});
 		}
 
 		if pos.line < 1 {
-			return self.move_to(Pos {
+			return self.cursor_bound(Pos {
 				line: 1,
 				.. pos
 			});
@@ -421,7 +426,7 @@ impl Buffer {
 
 			if pos.col > len {
 
-				return self.move_to(Pos {
+				return self.cursor_bound(Pos {
 					col: len,
 					.. pos
 				});
@@ -433,14 +438,18 @@ impl Buffer {
 		let lines = self.content.len() as u32;
 
 		if pos.line > lines && lines > 0 {
-			return self.move_to(Pos {
+			return self.cursor_bound(Pos {
 				line: lines,
 				.. pos
 			});
 		}
 
-		self.cursor = pos;
+		return pos;
 
+	}
+
+	pub fn move_to(&mut self, pos: Pos) {
+		self.cursor = self.cursor_bound(pos);
 	}
 
 	pub fn move_left(&mut self) {
@@ -533,9 +542,7 @@ impl Buffer {
 
 	}
 
-	pub fn move_line_start(&mut self) {
-
-		let mut pos = self.cursor.clone();
+	pub fn line_start_at(&self, mut pos: Pos) -> Pos {
 
 		if let Some(line) = self.get_line_at(pos.line) {
 
@@ -552,10 +559,16 @@ impl Buffer {
 
 			pos.col = index as u32 + 1;
 
+			return self.cursor_bound(pos);
+
 		}
 
-		self.move_to(pos);
+		return pos;
 
+	}
+
+	pub fn move_line_start(&mut self) {
+		self.cursor = self.line_start_at(self.cursor);
 	}
 
 	pub fn move_line_start_insert(&mut self) {
@@ -566,16 +579,19 @@ impl Buffer {
 
 	}
 
-	pub fn move_line_end(&mut self) {
-
-		let mut pos = self.cursor.clone();
+	pub fn line_end_at(&self, mut pos: Pos) -> Pos {
 
 		if let Some(line) = self.get_line_at(pos.line) {
 			pos.col = line.len() as u32;
+			return self.cursor_bound(pos);
 		}
 
-		self.move_to(pos);
+		return pos;
 
+	}
+
+	pub fn move_line_end(&mut self) {
+		self.cursor = self.line_end_at(self.cursor);
 	}
 
 	pub fn move_line_end_insert(&mut self) {
@@ -587,13 +603,11 @@ impl Buffer {
 
 	pub fn insert_str_at(&mut self, pos: Pos, text: &str) {
 
-		if let Some(line) = self.get_line_at(pos.line) {
+		if let Some(mut line) = self.get_line_at(pos.line).map(Clone::clone) {
 
-			let mut content = line.clone();
-
-			content.insert_str(pos.col as usize - 1, text);
+			line.insert_str(pos.col as usize - 1, text);
 			self.push();
-			self.set_line_at(pos.line, &content);
+			self.set_line_at(pos.line, &line);
 
 		}
 
@@ -605,22 +619,20 @@ impl Buffer {
 
 	pub fn insert_at(&mut self, pos: Pos, ch: char) {
 
-		if let Some(line) = self.get_line_at(pos.line) {
-
-			let mut content = line.clone();
+		if let Some(mut line) = self.get_line_at(pos.line).map(Clone::clone) {
 
 			if let Some(end_char) = self.filetype.pairs.get(&ch) {
-				content.insert(pos.col as usize - 1, ch);
-				content.insert(pos.col as usize, *end_char);
+				line.insert(pos.col as usize - 1, ch);
+				line.insert(pos.col as usize, *end_char);
 			} else {
-				content.insert(pos.col as usize - 1, ch);
+				line.insert(pos.col as usize - 1, ch);
 			}
 
 			if self.conf.break_chars.contains(&ch) {
 				self.push();
 			}
 
-			self.set_line_at(pos.line, &content);
+			self.set_line_at(pos.line, &line);
 
 		}
 
@@ -633,7 +645,7 @@ impl Buffer {
 
 	}
 
-	pub fn break_line_at(&mut self, cur: Pos) {
+	pub fn break_line_at(&mut self, cur: Pos) -> Pos {
 
 		if let Some(line) = self.get_line_at(cur.line).map(Clone::clone) {
 
@@ -657,6 +669,8 @@ impl Buffer {
 			self.move_line_start();
 
 		}
+
+		return cur;
 
 	}
 
@@ -690,27 +704,25 @@ impl Buffer {
 
 		let mut pos = self.cursor.clone();
 
-		if let Some(line) = self.get_line_at(pos.line) {
+		if let Some(mut line) = self.get_line_at(pos.line).map(Clone::clone) {
 
 			let before = &line[0..pos.col as usize - 1];
 
 			if before.is_empty() {
 
-				if let Some(prev_line) = self.get_line_at(pos.line - 1).map(Clone::clone) {
+				if let Some(mut prev_line) = self.get_line_at(pos.line - 1).map(Clone::clone) {
 
-					let mut content = prev_line.clone();
+					let col = prev_line.len() as u32 + 1;
 
-					content.push_str(line);
+					prev_line.push_str(&line);
 					self.del_line_at(pos.line);
-					self.set_line_at(pos.line - 1, &content);
+					self.set_line_at(pos.line - 1, &prev_line);
 					pos.line -= 1;
-					pos.col = prev_line.len() as u32 + 1;
+					pos.col = col;
 
 				}
 
 			} else {
-
-				let mut content = line.clone();
 
 				if let Some(ch) = self.char_at(Pos::new(self.cursor.line, self.cursor.col - 1)) {
 
@@ -718,13 +730,13 @@ impl Buffer {
 					let end_char = self.filetype.pairs.get(&ch).map(Clone::clone);
 
 					if nch.is_some() && nch == end_char {
-						content.remove(pos.col as usize - 1);
+						line.remove(pos.col as usize - 1);
 					}
 
 				}
 
-				content.remove(pos.col as usize - 2);
-				self.set_line_at(pos.line, &content);
+				line.remove(pos.col as usize - 2);
+				self.set_line_at(pos.line, &line);
 				pos.col -= 1;
 
 			}
@@ -745,9 +757,9 @@ impl Buffer {
 
 	}
 
-	pub fn del_word_at(&mut self, pos: Pos) {
+	pub fn del_word_at(&mut self, pos: Pos) -> Pos {
 		if let Some(prev_pos) = self.prev_word_at(pos) {
-			self.del_range(Range {
+			return self.del_range(Range {
 				start: prev_pos,
 				end: Pos {
 					col: pos.col - 1,
@@ -755,13 +767,15 @@ impl Buffer {
 				},
 			});
 		}
+		return self.cursor;
 	}
 
 	pub fn del_word(&mut self) {
-		self.del_word_at(self.cursor);
+		let pos = self.del_word_at(self.cursor);
+		self.move_to(pos);
 	}
 
-	pub fn del_range(&mut self, r: Range) {
+	pub fn del_range(&mut self, r: Range) -> Pos {
 
 		let start = r.start;
 		let end = r.end;
@@ -778,9 +792,13 @@ impl Buffer {
 				line.replace_range(start_col..end_col, "");
 				self.set_line_at(start.line, &line);
 
+				return start;
+
 			}
 
 		}
+
+		return self.cursor;
 
 	}
 

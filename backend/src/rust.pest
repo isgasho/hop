@@ -1,0 +1,70 @@
+space = _{ " " }
+alpha = { 'a'..'z' | 'A'..'Z' }
+digit = { '0'..'9' }
+number = { DECIMAL | INTEGER }
+INTEGER = { ("+" | "-")? ~ (digit)+ }
+DECIMAL = { ("+" | "-")? ~ (digit)* ~ "." ~ (digit)+ }
+
+types = {
+	 "i8"
+	 | "i16"
+	 | "i32"
+	 | "i64"
+	 | "i128"
+	 | "isize"
+	 | "u8"
+	 | "u16"
+	 | "u32"
+	 | "u64"
+	 | "u128"
+	 | "usize"
+	 | "f32"
+	 | "f64"
+	 | "bool"
+	 | "char"
+	 | "str"
+	 | "String"
+	 | "Vec"
+	 | "HashMap"
+	 | "HashSet"
+	 | "Result"
+	 | "Option"
+	 | "Self"
+	 | "Clone"
+	 | "Default"
+	 | "Debug"
+	 | "Hash"
+	 | "Copy"
+	 | "Eq"
+	 | "PartialEq"
+}
+
+keywords = {
+	"let"
+	| "mut"
+	| "return"
+	| "use"
+	| "pub"
+	| "fn"
+	| "for"
+	| "loop"
+	| "in"
+	| "mod"
+	| "const"
+	| "static"
+	| "match"
+	| "if"
+	| "else"
+	| "as"
+	| "where"
+	| "enum"
+	| "struct"
+	| "trait"
+	| "type"
+	| "impl"
+	| "match"
+}
+
+token = { keywords | number | types | ANY }
+line = { (keywords | number | types | ANY)* }
+
