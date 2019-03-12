@@ -295,7 +295,7 @@ impl Buffer {
 
 		if let Some(line) = self.get_line_at(pos.line) {
 
-			if pos.col < line.len() as u32 {
+			if pos.col <= line.len() as u32 {
 
 				for (i, ch) in line[..pos.col as usize].char_indices().rev() {
 
