@@ -75,8 +75,11 @@ impl Default for Conf {
 		break_chars.insert('}');
 		break_chars.insert('[');
 		break_chars.insert(']');
+		break_chars.insert('<');
+		break_chars.insert('>');
 		break_chars.insert('_');
 		break_chars.insert('-');
+		break_chars.insert('@');
 		break_chars.insert('\'');
 
 		return Self {
@@ -297,11 +300,13 @@ impl Buffer {
 
 			if pos.col <= line.len() as u32 {
 
-				for (i, ch) in line[..pos.col as usize].char_indices().rev() {
+				let end = clamp(pos.col as i32 - 2, 0, line.len() as i32);
+
+				for (i, ch) in line[..end as usize].char_indices().rev() {
 
 					if self.conf.break_chars.contains(&ch) {
 						return Some(Pos {
-							col: i as u32,
+							col: i as u32 + 2,
 							.. pos
 						});
 					}
@@ -744,7 +749,10 @@ impl Buffer {
 		if let Some(prev_pos) = self.prev_word_at(pos) {
 			self.del_range(Range {
 				start: prev_pos,
-				end: pos,
+				end: Pos {
+					col: pos.col - 1,
+					.. pos
+				},
 			});
 		}
 	}
@@ -766,6 +774,7 @@ impl Buffer {
 				let start_col = clamp(start.col as usize - 1, 0, line.len());
 				let end_col = clamp(end.col as usize, 0, line.len());
 
+				self.push();
 				line.replace_range(start_col..end_col, "");
 				self.set_line_at(start.line, &line);
 
