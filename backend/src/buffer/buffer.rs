@@ -601,23 +601,28 @@ impl Buffer {
 
 	}
 
-	pub fn insert_str_at(&mut self, pos: Pos, text: &str) {
+	pub fn insert_str_at(&mut self, mut pos: Pos, text: &str) -> Pos {
 
 		if let Some(mut line) = self.get_line_at(pos.line).map(Clone::clone) {
 
 			line.insert_str(pos.col as usize - 1, text);
 			self.push();
 			self.set_line_at(pos.line, &line);
+			pos.col += text.len() as u32;
+
+			return self.cursor_bound(pos);
 
 		}
+
+		return pos;
 
 	}
 
 	pub fn insert_str(&mut self, text: &str) {
-		self.insert_str_at(self.cursor, text);
+		self.cursor = self.insert_str_at(self.cursor, text);
 	}
 
-	pub fn insert_at(&mut self, pos: Pos, ch: char) {
+	pub fn insert_at(&mut self, mut pos: Pos, ch: char) -> Pos {
 
 		if let Some(mut line) = self.get_line_at(pos.line).map(Clone::clone) {
 
@@ -633,27 +638,29 @@ impl Buffer {
 			}
 
 			self.set_line_at(pos.line, &line);
+			pos.col += 1;
+
+			return self.cursor_bound(pos);
 
 		}
+
+		return pos;
 
 	}
 
 	pub fn insert(&mut self, ch: char) {
-
-		self.insert_at(self.cursor, ch);
-		self.move_right();
-
+		self.cursor = self.insert_at(self.cursor, ch);
 	}
 
-	pub fn break_line_at(&mut self, cur: Pos) -> Pos {
+	pub fn break_line_at(&mut self, mut pos: Pos) -> Pos {
 
-		if let Some(line) = self.get_line_at(cur.line).map(Clone::clone) {
+		if let Some(line) = self.get_line_at(pos.line).map(Clone::clone) {
 
-			let before = String::from(&line[0..cur.col as usize - 1]);
-			let mut after = String::from(&line[cur.col as usize - 1..line.len()]);
+			let before = String::from(&line[0..pos.col as usize - 1]);
+			let mut after = String::from(&line[pos.col as usize - 1..line.len()]);
 			let mut indents = 0;
 
-			if let Some(i) = self.get_indents(cur.line) {
+			if let Some(i) = self.get_indents(pos.line) {
 				indents += i;
 			}
 
@@ -662,20 +669,21 @@ impl Buffer {
 			}
 
 			self.push();
-			self.insert_line_at(cur.line + 1);
-			self.set_line_at(cur.line, &before);
-			self.set_line_at(cur.line + 1, &after);
-			self.move_down();
-			self.move_line_start();
+			self.insert_line_at(pos.line + 1);
+			self.set_line_at(pos.line, &before);
+			self.set_line_at(pos.line + 1, &after);
+			pos.line += 1;
+
+			return self.line_start_at(pos);
 
 		}
 
-		return cur;
+		return pos;
 
 	}
 
 	pub fn break_line(&mut self) {
-		self.break_line_at(self.cursor);
+		self.cursor = self.break_line_at(self.cursor);
 	}
 
 	pub fn get_indents(&mut self, ln: u32) -> Option<u32> {
@@ -700,9 +708,7 @@ impl Buffer {
 
 	}
 
-	pub fn del(&mut self) {
-
-		let mut pos = self.cursor.clone();
+	pub fn del_at(&mut self, mut pos: Pos) -> Pos {
 
 		if let Some(mut line) = self.get_line_at(pos.line).map(Clone::clone) {
 
@@ -741,10 +747,16 @@ impl Buffer {
 
 			}
 
+			return pos;
+
 		}
 
-		self.move_to(pos);
+		return pos;
 
+	}
+
+	pub fn del(&mut self) {
+		self.cursor = self.del_at(self.cursor);
 	}
 
 	pub fn char_at(&self, pos: Pos) -> Option<char> {
