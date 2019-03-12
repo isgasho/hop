@@ -22,6 +22,9 @@ pub struct ViewConf {
 	theme: Theme,
 	line_num: bool,
 	shift_width: u32,
+	margin_left: i32,
+	wrap: bool,
+	wrap_prefix: String,
 }
 
 impl Default for ViewConf {
@@ -30,9 +33,12 @@ impl Default for ViewConf {
 			scroll_off: 3,
 			scale: 1.5,
 			line_space: 2,
+			margin_left: 12,
 			theme: Theme::default(),
 			line_num: false,
 			shift_width: 4,
+			wrap: true,
+			wrap_prefix: "..".to_owned(),
 			font: g2d::Font::new(
 				gfx::Texture::from_bytes(FONT),
 				FONT_COLS,
@@ -395,7 +401,7 @@ impl Act for View {
 		g2d::rect(vec2!(w, h));
 
 		// viewport
-		g2d::translate(vec2!(12, 0));
+		g2d::translate(vec2!(self.conf.margin_left, 0));
 
 		// content
 		g2d::push();
@@ -409,7 +415,7 @@ impl Act for View {
 
 				g2d::push();
 				g2d::color(self.conf.theme.cursor_line);
-				g2d::translate(vec2!(-12, 0));
+				g2d::translate(vec2!(-self.conf.margin_left, 0));
 				g2d::rect(vec2!(w, th));
 				g2d::pop();
 
@@ -423,7 +429,6 @@ impl Act for View {
 			// content
 			for chunk in line {
 
-				// cursor
 				if real_line == buf.cursor.line && !cursor_drawn {
 
 					if col >= buf.cursor.col as usize {
@@ -473,6 +478,24 @@ impl Act for View {
 					},
 
 				}
+
+			}
+
+			if real_line == buf.cursor.line && !cursor_drawn {
+
+				let diff = buf.cursor.col as i32 - col as i32;
+
+				g2d::push();
+				g2d::translate(vec2!(diff * tw as i32, 0));
+				g2d::color(self.conf.theme.cursor);
+
+				match buf.mode {
+					Mode::Normal => g2d::rect(vec2!(tw, th)),
+					Mode::Insert => g2d::rect(vec2!(tw / 4, th)),
+					_ => {},
+				}
+
+				g2d::pop();
 
 			}
 
