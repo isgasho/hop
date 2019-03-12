@@ -42,9 +42,6 @@ impl Default for FileType {
 }
 
 pub struct Syntax {
-	keywords: HashSet<String>,
-	keyvalues: HashSet<String>,
-	types: HashSet<String>,
 }
 
 struct Region {
@@ -57,28 +54,7 @@ impl Syntax {
 
 	pub fn new() -> Self {
 		return Self {
-			keywords: HashSet::new(),
-			keyvalues: HashSet::new(),
-			types: HashSet::new(),
 		};
-	}
-
-	pub fn add_keywords(&mut self, words: &[&str]) {
-		for w in words {
-			self.keywords.insert(w.to_owned().to_string());
-		}
-	}
-
-	pub fn add_keyvalues(&mut self, words: &[&str]) {
-		for w in words {
-			self.keyvalues.insert(w.to_owned().to_string());
-		}
-	}
-
-	pub fn add_types(&mut self, types: &[&str]) {
-		for w in types {
-			self.types.insert(w.to_owned().to_string());
-		}
 	}
 
 }

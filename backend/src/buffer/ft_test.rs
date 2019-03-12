@@ -44,8 +44,6 @@ pub fn rust() -> FileType {
 
 	let mut syntax = Syntax::new();
 
-	syntax.add_keyvalues(&["true", "false", "Some", "None", "Ok", "Err", "self"]);
-
 	return FileType {
 
 		name: String::from("rust"),
