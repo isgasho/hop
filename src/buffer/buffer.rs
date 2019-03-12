@@ -145,6 +145,8 @@ impl Act for View {
 								'>' => self.buffer.move_line_end_insert(),
 								':' => self.buffer.start_command(),
 								'?' => self.buffer.start_search(),
+								'H' => self.buffer.move_prev_word(),
+								'L' => self.buffer.move_next_word(),
 								_ => {},
 							}
 
@@ -429,6 +431,7 @@ impl Act for View {
 			// content
 			for chunk in line {
 
+				// cursor
 				if real_line == buf.cursor.line && !cursor_drawn {
 
 					if col >= buf.cursor.col as usize {
@@ -481,6 +484,7 @@ impl Act for View {
 
 			}
 
+			// cursor
 			if real_line == buf.cursor.line && !cursor_drawn {
 
 				let diff = buf.cursor.col as i32 - col as i32;

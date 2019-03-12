@@ -95,7 +95,7 @@ pub struct Pos {
 
 impl Pos {
 
-	fn new(line: u32, col: u32) -> Self {
+	pub fn new(line: u32, col: u32) -> Self {
 		return Self {
 			line: line,
 			col: col,
@@ -260,16 +260,27 @@ impl Buffer {
 	pub fn next_word_at(&self, pos: Pos) -> Option<Pos> {
 
 		if let Some(line) = self.get_line_at(pos.line) {
+
 			if pos.col < line.len() as u32 {
-				for (i, ch) in line[pos.col as usize..].char_indices() {
+
+				for (i, ch) in line[pos.col as usize + 1..].char_indices() {
+
 					if self.conf.break_chars.contains(&ch) {
 						return Some(Pos {
-							col: i as u32,
+							col: pos.col + 1 + i as u32,
 							.. pos
 						});
 					}
+
 				}
+
+				return Some(Pos {
+					col: line.len() as u32,
+					.. pos
+				});
+
 			}
+
 		}
 
 		return None;
@@ -283,16 +294,27 @@ impl Buffer {
 	pub fn prev_word_at(&self, pos: Pos) -> Option<Pos> {
 
 		if let Some(line) = self.get_line_at(pos.line) {
+
 			if pos.col < line.len() as u32 {
+
 				for (i, ch) in line[..pos.col as usize].char_indices().rev() {
+
 					if self.conf.break_chars.contains(&ch) {
 						return Some(Pos {
 							col: i as u32,
 							.. pos
 						});
 					}
+
 				}
+
+				return Some(Pos {
+					col: 1,
+					.. pos
+				});
+
 			}
+
 		}
 
 		return None;
@@ -718,12 +740,39 @@ impl Buffer {
 
 	}
 
+	pub fn del_word_at(&mut self, pos: Pos) {
+		if let Some(prev_pos) = self.prev_word_at(pos) {
+			self.del_range(Range {
+				start: prev_pos,
+				end: pos,
+			});
+		}
+	}
+
 	pub fn del_word(&mut self) {
-		// ...
+		self.del_word_at(self.cursor);
 	}
 
 	pub fn del_range(&mut self, r: Range) {
-		// ...
+
+		let start = r.start;
+		let end = r.end;
+
+		if start.line == end.line {
+
+			if let Some(line) = self.get_line_at(start.line) {
+
+				let mut line = line.clone();
+				let start_col = clamp(start.col as usize - 1, 0, line.len());
+				let end_col = clamp(end.col as usize, 0, line.len());
+
+				line.replace_range(start_col..end_col, "");
+				self.set_line_at(start.line, &line);
+
+			}
+
+		}
+
 	}
 
 	pub fn search(&self, target: &str) -> Vec<Pos> {
@@ -753,6 +802,22 @@ impl Buffer {
 
 		return results;
 
+	}
+
+}
+
+pub fn clamp<N: PartialOrd>(x: N, min: N, max: N) -> N {
+
+	if min > max {
+		return clamp(x, max, min);
+	}
+
+	if x < min {
+		return min;
+	} else if x > max {
+		return max;
+	} else {
+		return x;
 	}
 
 }
