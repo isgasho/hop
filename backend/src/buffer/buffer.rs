@@ -27,7 +27,7 @@ pub struct Buffer {
 
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct State {
 	content: Vec<String>,
 	cursor: Pos,
@@ -244,26 +244,57 @@ impl Buffer {
 
 	}
 
-	/// push current state to undo stack
-	pub fn push(&mut self) {
-
-		self.undo_stack.push(State {
+	/// get current state for undo/redo
+	pub fn get_state(&self) -> State {
+		return State {
 			content: self.content.clone(),
 			cursor: self.cursor.clone(),
 			modified: self.modified,
-		});
+		};
+	}
 
+	/// set current state
+	pub fn set_state(&mut self, state: State) {
+
+		self.content = state.content;
+		self.modified = state.modified;
+		self.move_to(state.cursor);
+
+	}
+
+	/// push current state to undo stack
+	pub fn push_undo(&mut self) {
+
+		let state = self.get_state();
+
+		if self.undo_stack.get(self.undo_stack.len() - 1) == Some(&state) {
+			return;
+		}
+
+		self.undo_stack.push(state);
+
+	}
+
+	/// push current state to redo stack
+	pub fn push_redo(&mut self) {
+		self.redo_stack.push(self.get_state());
 	}
 
 	/// undo
 	pub fn undo(&mut self) {
 
 		if let Some(state) = self.undo_stack.pop() {
+			self.push_redo();
+			self.set_state(state);
+		}
 
-			self.content = state.content;
-			self.modified = state.modified;
-			self.move_to(state.cursor);
+	}
 
+	/// redo
+	pub fn redo(&mut self) {
+
+		if let Some(state) = self.redo_stack.pop() {
+			self.set_state(state);
 		}
 
 	}
@@ -335,7 +366,7 @@ impl Buffer {
 		if self.content.get(ln as usize - 1).is_some() {
 
 			if !self.modified {
-				self.push();
+				self.push_undo();
 				self.modified = true;
 			}
 
@@ -355,7 +386,7 @@ impl Buffer {
 
 		if ln as usize <= self.content.len() {
 
-			self.push();
+			self.push_undo();
 
 			if !self.modified {
 				self.modified = true;
@@ -381,7 +412,7 @@ impl Buffer {
 	/// insert a line at secified position
 	pub fn insert_line_at(&mut self, ln: Line) -> Line {
 
-		self.push();
+		self.push_undo();
 
 		if !self.modified {
 			self.modified = true;
@@ -677,7 +708,7 @@ impl Buffer {
 		if let Some(mut line) = self.get_line_at(pos.line).map(Clone::clone) {
 
 			line.insert_str(pos.col as usize - 1, text);
-			self.push();
+			self.push_undo();
 			self.set_line_at(pos.line, &line);
 			pos.col += text.len() as Col;
 
@@ -707,7 +738,7 @@ impl Buffer {
 			}
 
 			if self.conf.break_chars.contains(&ch) {
-				self.push();
+				self.push_undo();
 			}
 
 			self.set_line_at(pos.line, &line);
@@ -743,7 +774,7 @@ impl Buffer {
 				after.insert(0, '\t');
 			}
 
-			self.push();
+			self.push_undo();
 			self.insert_line_at(pos.line + 1);
 			self.set_line_at(pos.line, &before);
 			self.set_line_at(pos.line + 1, &after);
@@ -761,6 +792,71 @@ impl Buffer {
 	/// break_line_at() with cursor movement
 	pub fn break_line(&mut self) {
 		self.cursor = self.break_line_at(self.cursor);
+	}
+
+	/// check if a line is commented
+	pub fn is_commented_at(&self, ln: Line) -> bool {
+
+		if let Some(comment) = self.filetype.comment.clone() {
+			if let Some(line) = self.get_line_at(ln) {
+				if let Some(front) = line.get(0..comment.len() + 1) {
+					return front == &format!("{} ", comment);
+				}
+			}
+		}
+
+		return false;
+
+	}
+
+	/// check if current line is commented
+	pub fn is_commented(&self) -> bool {
+		return self.is_commented_at(self.cursor.line);
+	}
+
+	/// comment given line
+	pub fn comment_at(&mut self, ln: Line) {
+		if !self.is_commented_at(ln) {
+			if let Some(comment) = self.filetype.comment.clone() {
+				self.insert_str_at(Pos::new(ln, 1), &format!("{} ", comment));
+			}
+		}
+	}
+
+	/// comment current line
+	pub fn comment(&mut self) {
+		self.comment_at(self.cursor.line);
+	}
+
+	/// uncomment given line
+	pub fn uncomment_at(&mut self, ln: Line) {
+		if self.is_commented_at(ln) {
+			if let Some(comment) = self.filetype.comment.clone() {
+				if let Some(mut line) = self.get_line_at(ln).map(Clone::clone) {
+					line.replace_range(0..comment.len() + 1, "");
+					self.set_line_at(ln, &line);
+				}
+			}
+		}
+	}
+
+	/// uncomment current line
+	pub fn uncomment(&mut self) {
+		self.uncomment_at(self.cursor.line);
+	}
+
+	/// toggle comment at given line
+	pub fn toggle_comment_at(&mut self, ln: Line) {
+		if self.is_commented_at(ln) {
+			self.uncomment_at(ln);
+		} else {
+			self.comment_at(ln);
+		}
+	}
+
+	/// toggle comment at current line
+	pub fn toggle_comment(&mut self) {
+		self.toggle_comment_at(self.cursor.line);
 	}
 
 	/// get indent level of a line
@@ -786,6 +882,7 @@ impl Buffer {
 
 	}
 
+	/// delete char at specified position
 	pub fn del_at(&mut self, mut pos: Pos) -> Pos {
 
 		if let Some(mut line) = self.get_line_at(pos.line).map(Clone::clone) {
@@ -833,10 +930,12 @@ impl Buffer {
 
 	}
 
+	/// delete char at current cursor
 	pub fn del(&mut self) {
 		self.cursor = self.del_at(self.cursor);
 	}
 
+	/// get char at position
 	pub fn char_at(&self, pos: Pos) -> Option<char> {
 
 		if let Some(content) = self.get_line_at(pos.line) {
@@ -847,6 +946,7 @@ impl Buffer {
 
 	}
 
+	/// delete the word at specified position
 	pub fn del_word_at(&mut self, pos: Pos) -> Pos {
 		if let Some(prev_pos) = self.prev_word_at(pos) {
 			return self.del_range(Range {
@@ -860,11 +960,13 @@ impl Buffer {
 		return self.cursor;
 	}
 
+	/// delete the word before the cursor
 	pub fn del_word(&mut self) {
 		let pos = self.del_word_at(self.cursor);
 		self.move_to(pos);
 	}
 
+	/// delete a range of text
 	pub fn del_range(&mut self, r: Range) -> Pos {
 
 		let start = r.start;
@@ -878,7 +980,7 @@ impl Buffer {
 				let start_col = clamp(start.col as usize - 1, 0, line.len());
 				let end_col = clamp(end.col as usize, 0, line.len());
 
-				self.push();
+				self.push_undo();
 				line.replace_range(start_col..end_col, "");
 				self.set_line_at(start.line, &line);
 
@@ -892,6 +994,7 @@ impl Buffer {
 
 	}
 
+	/// search for a piece of text
 	pub fn search(&self, target: &str) -> Vec<Pos> {
 
 		let mut results = vec![];
@@ -919,6 +1022,11 @@ impl Buffer {
 
 		return results;
 
+	}
+
+	/// feed keys as if they're pressed by user
+	pub fn feed(&mut self) {
+		// ...
 	}
 
 }

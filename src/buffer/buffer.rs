@@ -140,6 +140,7 @@ impl Act for View {
 								'j' => self.buffer.move_down(),
 								'k' => self.buffer.move_up(),
 								'u' => self.buffer.undo(),
+								'o' => self.buffer.redo(),
 								'd' => self.buffer.del_line(),
 								'<' => self.buffer.move_line_start_insert(),
 								'>' => self.buffer.move_line_end_insert(),
@@ -147,6 +148,7 @@ impl Act for View {
 								'?' => self.buffer.start_search(),
 								'H' => self.buffer.move_prev_word(),
 								'L' => self.buffer.move_next_word(),
+								'/' => self.buffer.toggle_comment(),
 								_ => {},
 							}
 

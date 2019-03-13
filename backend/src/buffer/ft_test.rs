@@ -51,6 +51,7 @@ pub fn rust() -> FileType {
 		comment: Some(String::from("//")),
 		shift_width: 4,
 		expand_tab: false,
+		auto_indent: true,
 		indent_forward: vec![],
 		indent_backward: vec![],
 		pairs: pairs,
