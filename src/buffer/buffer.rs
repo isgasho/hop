@@ -22,6 +22,7 @@ pub struct ViewConf {
 	theme: Theme,
 	line_num: bool,
 	shift_width: u32,
+	show_indent: bool,
 	margin_left: i32,
 	wrap: bool,
 	wrap_prefix: String,
@@ -37,6 +38,7 @@ impl Default for ViewConf {
 			theme: Theme::default(),
 			line_num: false,
 			shift_width: 4,
+			show_indent: true,
 			wrap: true,
 			wrap_prefix: "..".to_owned(),
 			font: g2d::Font::new(
@@ -426,6 +428,7 @@ impl Act for View {
 			}
 
 			let mut col = 1;
+			let mut shift_col = 0;
 			let mut cursor_drawn = false;
 
 			g2d::push();
@@ -470,14 +473,28 @@ impl Act for View {
 						g2d::text(&text);
 						g2d::translate(vec2!(tw * text.len() as u32, 0));
 						col += text.len();
+						shift_col += text.len();
 
 					},
 
 					RenderedChunk::Shift => {
 
-						g2d::color(color!(0.24, 0.27, 0.33, 1));
-						g2d::text("|");
-						g2d::translate(vec2!(tw * self.conf.shift_width, 0));
+						if self.conf.show_indent {
+							g2d::color(color!(0.24, 0.27, 0.33, 1));
+							g2d::text("|");
+						}
+
+						let sw = self.conf.shift_width;
+						let offset = sw - shift_col as u32 % sw;
+
+						if offset == sw {
+							shift_col += sw as usize;
+							g2d::translate(vec2!(tw * sw, 0));
+						} else {
+							shift_col += offset as usize;
+							g2d::translate(vec2!(tw * offset as u32, 0));
+						}
+
 						col += 1;
 
 					},

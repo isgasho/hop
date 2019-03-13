@@ -267,7 +267,7 @@ impl Buffer {
 
 		let state = self.get_state();
 
-		if self.undo_stack.get(self.undo_stack.len() - 1) == Some(&state) {
+		if self.undo_stack.last() == Some(&state) {
 			return;
 		}
 
