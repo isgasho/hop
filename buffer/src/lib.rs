@@ -1,9 +1,12 @@
 // wengwengweng
 
 mod buffer;
-pub mod ft;
+mod ft;
+mod syntax;
 mod ft_test;
 
 pub use buffer::*;
+pub use ft::*;
+pub use syntax::*;
 
 

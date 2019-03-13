@@ -4,7 +4,7 @@ version = "0.1.0"
 dependencies = [
  "dirty 0.0.0 (git+https://github.com/slmjkdbtl/DIRTY)",
  "gctx 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "worksuite 0.1.0",
+ "suite 0.1.0",
 ]
 
 [[package]]
@@ -161,6 +161,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "arrayref 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "byte-tools 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "browser"
+version = "0.1.0"
+
+[[package]]
+name = "buffer"
+version = "0.1.0"
+dependencies = [
+ "clipboard 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lsp-types 0.56.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pest 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pest_derive 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1575,6 +1590,14 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "suite"
+version = "0.1.0"
+dependencies = [
+ "browser 0.1.0",
+ "buffer 0.1.0",
+]
+
+[[package]]
 name = "syn"
 version = "0.15.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1782,17 +1805,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "worksuite"
-version = "0.1.0"
-dependencies = [
- "clipboard 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "lsp-types 0.56.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pest 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pest_derive 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "regex 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
-]
 
 [[package]]
 name = "x11-clipboard"

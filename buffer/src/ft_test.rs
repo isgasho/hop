@@ -2,13 +2,13 @@
 
 use std::collections::HashMap;
 
-use super::ft::*;
-
 use pest::Parser;
 use pest_derive::Parser;
 
+use super::*;
+
 #[derive(Parser)]
-#[grammar = "buffer/res/rust.syn"]
+#[grammar = "res/rust.syn"]
 pub struct RustParser;
 
 pub fn rust() -> FileType {
@@ -43,7 +43,7 @@ pub fn rust() -> FileType {
 	pairs.insert('{', '}');
 	pairs.insert('[', ']');
 
-	let mut syntax = Syntax::new();
+	let syntax = Syntax::new();
 
 	return FileType {
 

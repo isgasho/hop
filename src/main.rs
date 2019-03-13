@@ -10,7 +10,7 @@ use dirty::*;
 pub mod browser;
 pub mod buffer;
 
-use worksuite::browser::Browser;
+use suite::browser::Browser;
 
 trait Act: Any {
 	fn update(&mut self);

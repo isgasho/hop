@@ -7,8 +7,8 @@ use dirty::*;
 use input::Key;
 
 use crate::Act;
-use worksuite::buffer::Buffer;
-use worksuite::browser::*;
+use suite::buffer::Buffer;
+use suite::browser::*;
 
 include!("../res/font.rs");
 

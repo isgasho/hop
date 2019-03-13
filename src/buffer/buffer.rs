@@ -7,8 +7,8 @@ use input::Mouse;
 use input::TextInput;
 
 use crate::Act;
-use worksuite::browser::Browser;
-use worksuite::buffer::*;
+use suite::browser::Browser;
+use suite::buffer::*;
 
 use super::theme::*;
 

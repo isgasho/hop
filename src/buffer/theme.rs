@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use dirty::color;
 use dirty::math::*;
 
-use worksuite::buffer::Span;
+use suite::buffer::Span;
 
 pub struct Theme {
 

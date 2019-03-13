@@ -9,10 +9,13 @@ edition = "2018"
 
 [workspace]
 members = [
-	"backend",
+	"buffer",
+	"browser",
+	"suite",
 ]
 
 [dependencies]
 gctx = "0.1.0"
 dirty = { git = "https://github.com/slmjkdbtl/DIRTY" }
-worksuite = { path = "backend" }
+suite = { path = "suite" }
+

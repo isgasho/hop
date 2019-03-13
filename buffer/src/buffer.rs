@@ -24,6 +24,7 @@ pub struct Buffer {
 	pub conf: Conf,
 	pub log: Vec<String>,
 	pub filetype: FileType,
+	pub mark: Option<Pos>,
 
 }
 
@@ -154,6 +155,7 @@ impl Buffer {
 			undo_stack: Vec::new(),
 			redo_stack: Vec::new(),
 			modified: false,
+			mark: None,
 			clipboard: ClipboardProvider::new().unwrap(),
 			log: Vec::new(),
 			filetype: ft_test::rust(),
@@ -1138,6 +1140,23 @@ impl Buffer {
 	pub fn move_to_next(&mut self, target: &str) {
 		if let Some(pos) = self.search_next(target) {
 			self.move_to(pos);
+		}
+	}
+
+	/// mark at a position
+	pub fn mark_at(&mut self, pos: Pos) {
+		self.mark = Some(pos);
+	}
+
+	/// mark at current position
+	pub fn mark(&mut self) {
+		self.mark_at(self.cursor);
+	}
+
+	/// move to mark
+	pub fn to_mark(&mut self) {
+		if let Some(mark) = self.mark {
+			self.move_to(mark);
 		}
 	}
 

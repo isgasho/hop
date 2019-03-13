@@ -5,6 +5,8 @@ use std::collections::HashSet;
 
 use regex::Regex;
 
+use super::*;
+
 pub struct FileType {
 
 	pub name: String,
@@ -41,24 +43,6 @@ impl Default for FileType {
 			syntax: None,
 		};
 	}
-}
-
-pub struct Syntax {
-}
-
-struct Region {
-	start: String,
-	skip: String,
-	end: String,
-}
-
-impl Syntax {
-
-	pub fn new() -> Self {
-		return Self {
-		};
-	}
-
 }
 
 pub struct Registry {
