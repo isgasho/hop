@@ -296,6 +296,7 @@ impl Buffer {
 	pub fn redo(&mut self) {
 
 		if let Some(state) = self.redo_stack.pop() {
+			self.push_undo();
 			self.set_state(state);
 		}
 
@@ -369,6 +370,7 @@ impl Buffer {
 
 			if !self.modified {
 				self.push_undo();
+				self.redo_stack.clear();
 				self.modified = true;
 			}
 
@@ -391,6 +393,7 @@ impl Buffer {
 			self.push_undo();
 
 			if !self.modified {
+				self.redo_stack.clear();
 				self.modified = true;
 			}
 
@@ -417,6 +420,7 @@ impl Buffer {
 		self.push_undo();
 
 		if !self.modified {
+			self.redo_stack.clear();
 			self.modified = true;
 		}
 
