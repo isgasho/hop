@@ -395,7 +395,7 @@ impl Buffer {
 			self.content.remove(ln as usize - 1);
 
 			if self.content.is_empty() {
-				self.content = vec!["".to_owned()];
+				self.content = vec![String::from("")];
 			}
 
 		}
@@ -429,6 +429,7 @@ impl Buffer {
 		self.cursor.line = self.insert_line_at(self.cursor.line);
 	}
 
+	// todo
 	/// get next word position at specified position
 	pub fn next_word_at(&self, pos: Pos) -> Option<Pos> {
 
@@ -465,6 +466,7 @@ impl Buffer {
 		return self.next_word_at(self.cursor);
 	}
 
+	// todo
 	/// get previous word position at specified position
 	pub fn prev_word_at(&self, pos: Pos) -> Option<Pos> {
 
@@ -757,7 +759,8 @@ impl Buffer {
 		self.cursor = self.insert_at(self.cursor, ch);
 	}
 
-	/// break in the middle in a line into 2 halfs, calculating indent
+	// todo
+	/// break and insert new line, calculating indent
 	pub fn break_line_at(&mut self, mut pos: Pos) -> Pos {
 
 		if let Some(line) = self.get_line_at(pos.line).map(Clone::clone) {
@@ -794,6 +797,7 @@ impl Buffer {
 		self.cursor = self.break_line_at(self.cursor);
 	}
 
+	// todo: better matching
 	/// check if a line is commented
 	pub fn is_commented_at(&self, ln: Line) -> bool {
 
@@ -814,6 +818,7 @@ impl Buffer {
 		return self.is_commented_at(self.cursor.line);
 	}
 
+	// todo: better matching
 	/// comment given line
 	pub fn comment_at(&mut self, ln: Line) {
 		if !self.is_commented_at(ln) {
@@ -828,6 +833,7 @@ impl Buffer {
 		self.comment_at(self.cursor.line);
 	}
 
+	// todo: better matching
 	/// uncomment given line
 	pub fn uncomment_at(&mut self, ln: Line) {
 		if self.is_commented_at(ln) {
@@ -859,6 +865,7 @@ impl Buffer {
 		self.toggle_comment_at(self.cursor.line);
 	}
 
+	// todo: ignore comments
 	/// get indent level of a line
 	pub fn get_indents(&mut self, ln: Line) -> Option<IndentLevel> {
 
@@ -994,39 +1001,144 @@ impl Buffer {
 
 	}
 
-	/// search for a piece of text
-	pub fn search(&self, target: &str) -> Vec<Pos> {
+	/// search for the previous appearence of the given text in given line
+	pub fn search_prev_inline_at(&self, pos: Pos, target: &str) -> Option<Pos> {
 
-		let mut results = vec![];
-		let target_bytes = target.as_bytes();
-		let target_len = target.len();
-
-		for (i, line) in self.content.iter().enumerate() {
-
-			for (offset, _) in line.char_indices() {
-
-				let slice = &line[offset..];
-				let slice_len = slice.len();
-				let slice_bytes = slice.as_bytes();
-
-				if slice_len >= target_len && target_bytes == &slice_bytes[..target_len] {
-					results.push(Pos {
-						line: i as Line + 1,
-						col: offset as Col + 1,
+		if let Some(line) = self.get_line_at(pos.line) {
+			if let Some(slice) = line.get(0..pos.col as usize) {
+				if let Some(index) = slice.rfind(target) {
+					return Some(Pos {
+						col: index as Col + 1,
+						.. pos
 					});
+				}
+			}
+		}
+
+		return None;
+
+	}
+
+	/// search for the next appearence of the given text in given line
+	pub fn search_next_inline_at(&self, pos: Pos, target: &str) -> Option<Pos> {
+
+		if let Some(line) = self.get_line_at(pos.line) {
+			if let Some(slice) = line.get(pos.col as usize..line.len()) {
+				if let Some(index) = slice.find(target) {
+					return Some(Pos {
+						col: index as Col + 1 + pos.col,
+						.. pos
+					});
+				}
+			}
+		}
+
+		return None;
+
+	}
+
+	/// search for the next appearence of the given text in current line
+	pub fn search_next_inline(&self, target: &str) -> Option<Pos> {
+		return self.search_next_inline_at(self.cursor, target);
+	}
+
+	/// search for the prev appearence of the given text
+	pub fn search_prev_at(&self, pos: Pos, target: &str) -> Option<Pos> {
+
+		if let Some(app) = self.search_prev_inline_at(pos, target) {
+
+			return Some(app);
+
+		} else {
+
+			for i in (0..pos.line as usize - 1).rev() {
+
+				let result = self.search_prev_inline_at(Pos {
+					line: i as Line + 1,
+					col: self.content[i].len() as Col,
+				}, target);
+
+				if result.is_some() {
+					return result;
 				}
 
 			}
 
 		}
 
-		return results;
+		return None;
 
 	}
 
-	/// feed keys as if they're pressed by user
-	pub fn feed(&mut self) {
-		// ...
+	/// search for the prev appearence of the given text in current line
+	pub fn search_prev_inline(&self, target: &str) -> Option<Pos> {
+		return self.search_prev_inline_at(self.cursor, target);
+	}
+
+	/// search for the next appearence of the given text
+	pub fn search_next_at(&self, pos: Pos, target: &str) -> Option<Pos> {
+
+		if let Some(app) = self.search_next_inline_at(pos, target) {
+
+			return Some(app);
+
+		} else {
+
+			for i in pos.line as usize..self.content.len() {
+
+				let result = self.search_next_inline_at(Pos {
+					line: i as Line + 1,
+					col: 1,
+				}, target);
+
+				if result.is_some() {
+					return result;
+				}
+
+			}
+
+		}
+
+		return None;
+
+	}
+
+	/// search for the prev appearence of the given text at current cursor
+	pub fn search_prev(&self, target: &str) -> Option<Pos> {
+		return self.search_prev_at(self.cursor, target);
+	}
+
+	/// search for the next appearence of the given text at current cursor
+	pub fn search_next(&self, target: &str) -> Option<Pos> {
+		return self.search_next_at(self.cursor, target);
+	}
+
+	/// move to the prev search result
+	pub fn move_to_prev_inline(&mut self, target: &str) {
+		if let Some(pos) = self.search_prev_inline(target) {
+			self.move_to(pos);
+		}
+	}
+
+	/// move to the next search result
+	pub fn move_to_next_inline(&mut self, target: &str) {
+		if let Some(pos) = self.search_next_inline(target) {
+			self.move_to(pos);
+		}
+	}
+
+	/// move to the prev search result
+	pub fn move_to_prev(&mut self, target: &str) {
+		if let Some(pos) = self.search_prev(target) {
+			self.move_to(pos);
+		}
+	}
+
+	/// move to the next search result
+	pub fn move_to_next(&mut self, target: &str) {
+		if let Some(pos) = self.search_next(target) {
+			self.move_to(pos);
+		}
 	}
 
 }

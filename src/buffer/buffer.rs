@@ -487,14 +487,8 @@ impl Act for View {
 						let sw = self.conf.shift_width;
 						let offset = sw - shift_col as u32 % sw;
 
-						if offset == sw {
-							shift_col += sw as usize;
-							g2d::translate(vec2!(tw * sw, 0));
-						} else {
-							shift_col += offset as usize;
-							g2d::translate(vec2!(tw * offset as u32, 0));
-						}
-
+						g2d::translate(vec2!(tw * offset as u32, 0));
+						shift_col += offset as usize;
 						col += 1;
 
 					},
