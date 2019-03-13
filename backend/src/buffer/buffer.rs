@@ -94,7 +94,7 @@ pub type Line = u32;
 pub type Col = u32;
 pub type IndentLevel = u32;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Pos {
 	pub line: Line,
 	pub col: Col,
@@ -111,7 +111,7 @@ impl Pos {
 
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Mode {
 	Normal,
 	Insert,
@@ -120,7 +120,7 @@ pub enum Mode {
 	Search,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Range {
 	pub start: Pos,
 	pub end: Pos,
@@ -244,26 +244,158 @@ impl Buffer {
 
 	}
 
+	/// push current state to undo stack
+	pub fn push(&mut self) {
+
+		self.undo_stack.push(State {
+			content: self.content.clone(),
+			cursor: self.cursor.clone(),
+			modified: self.modified,
+		});
+
+	}
+
+	/// undo
+	pub fn undo(&mut self) {
+
+		if let Some(state) = self.undo_stack.pop() {
+
+			self.content = state.content;
+			self.modified = state.modified;
+			self.move_to(state.cursor);
+
+		}
+
+	}
+
+	/// start normal mode
+	pub fn start_normal(&mut self) {
+
+		if let Mode::Normal = self.mode {
+			return;
+		}
+
+		self.mode = Mode::Normal;
+		self.move_left();
+
+	}
+
+	/// start insert mode
+	pub fn start_insert(&mut self) {
+
+		if let Mode::Insert = self.mode {
+			return;
+		}
+
+		self.mode = Mode::Insert;
+		self.move_right();
+
+	}
+
+	/// start command mode
+	pub fn start_command(&mut self) {
+
+		if let Mode::Command = self.mode {
+			return;
+		}
+
+		self.mode = Mode::Command;
+
+	}
+
+	/// start search mode
+	pub fn start_search(&mut self) {
+
+		if let Mode::Search = self.mode {
+			return;
+		}
+
+		self.mode = Mode::Search;
+
+	}
+
+	/// get if current buffer is modified
 	pub fn modified(&self) -> bool {
 		return self.modified;
 	}
 
+	/// get content of a line
 	pub fn get_line_at(&self, ln: Line) -> Option<&String> {
 		return self.content.get(ln as usize - 1);
 	}
 
+	/// get content of current line
 	pub fn get_line(&self) -> Option<&String> {
 		return self.get_line_at(self.cursor.line);
 	}
 
+	/// set content of a line
 	pub fn set_line_at(&mut self, ln: Line, content: &str) {
-		if let Some(line) = self.content.get_mut(ln as usize - 1) {
-			*line = String::from(content);
+
+		if self.content.get(ln as usize - 1).is_some() {
+
+			if !self.modified {
+				self.push();
+				self.modified = true;
+			}
+
+			self.content.get_mut(ln as usize - 1).map(|s| *s = String::from(content));
+
 		}
+
 	}
 
+	/// set content of current line
 	pub fn set_line(&mut self, content: &str) {
 		self.set_line_at(self.cursor.line, content);
+	}
+
+	/// delete secified line
+	pub fn del_line_at(&mut self, ln: Line) -> Line {
+
+		if ln as usize <= self.content.len() {
+
+			self.push();
+
+			if !self.modified {
+				self.modified = true;
+			}
+
+			self.content.remove(ln as usize - 1);
+
+			if self.content.is_empty() {
+				self.content = vec!["".to_owned()];
+			}
+
+		}
+
+		return clamp(ln, 1, self.content.len() as Line);
+
+	}
+
+	/// delete current line
+	pub fn del_line(&mut self) {
+		self.cursor.line = self.del_line_at(self.cursor.line);
+	}
+
+	/// insert a line at secified position
+	pub fn insert_line_at(&mut self, ln: Line) -> Line {
+
+		self.push();
+
+		if !self.modified {
+			self.modified = true;
+		}
+
+		self.content.insert(ln as usize - 1, String::new());
+
+		return clamp(ln + 1, 1, self.content.len() as Line);
+
+	}
+
+	/// insert a line at current cursor
+	pub fn insert_line(&mut self) {
+		self.cursor.line = self.insert_line_at(self.cursor.line);
 	}
 
 	/// get next word position at specified position
@@ -340,50 +472,15 @@ impl Buffer {
 		return self.prev_word_at(self.cursor);
 	}
 
-	/// delete secified line
-	pub fn del_line_at(&mut self, ln: Line) -> Line {
-
-		if ln as usize <= self.content.len() {
-
-			self.content.remove(ln as usize - 1);
-
-			if self.content.is_empty() {
-				self.content = vec!["".to_owned()];
-			}
-
-		}
-
-		return clamp(ln, 1, self.content.len() as Line);
-
-	}
-
-	/// delete current line
-	pub fn del_line(&mut self) {
-
-		self.push();
-		self.cursor.line = self.del_line_at(self.cursor.line);
-
-	}
-
-	/// insert a line at secified position
-	pub fn insert_line_at(&mut self, ln: Line) -> Line {
-		self.content.insert(ln as usize - 1, String::new());
-		return clamp(ln + 1, 1, self.content.len() as Line);
-	}
-
-	/// insert a line at current cursor
-	pub fn insert_line(&mut self) {
-
-		self.push();
-		self.cursor.line = self.insert_line_at(self.cursor.line);
-
-	}
-
 	/// copy the whole specified line
 	pub fn copy_line_at(&mut self, ln: Line) {
 
-		if let Some(content) = self.get_line_at(ln) {
-			self.clipboard.set_contents(content.clone()).unwrap();
+		if let Some(content) = self.get_line_at(ln).map(Clone::clone) {
+			if let Ok(_) = self.clipboard.set_contents(content) {
+				// ...
+			} else {
+				// ...
+			}
 		}
 
 	}
@@ -393,27 +490,20 @@ impl Buffer {
 		self.copy_line_at(self.cursor.line);
 	}
 
-	/// push current state to undo stack
-	pub fn push(&mut self) {
+	/// paste at specified pos
+	pub fn paste_at(&mut self, pos: Pos) -> Pos {
 
-		self.undo_stack.push(State {
-			content: self.content.clone(),
-			cursor: self.cursor.clone(),
-			modified: self.modified,
-		});
+		if let Ok(content) = self.clipboard.get_contents() {
+			return self.insert_str_at(pos, &content);
+		}
+
+		return pos;
 
 	}
 
-	/// undo
-	pub fn undo(&mut self) {
-
-		if let Some(state) = self.undo_stack.pop() {
-
-			self.content = state.content;
-			self.move_to(state.cursor);
-
-		}
-
+	/// paste at current cursor
+	pub fn paste(&mut self) {
+		self.cursor = self.paste_at(self.cursor);
 	}
 
 	/// returns the bound checked position of a cursor position
@@ -435,7 +525,11 @@ impl Buffer {
 
 		if let Some(line) = self.get_line_at(pos.line) {
 
-			let len = line.len() as Col + 1;
+			let mut len = line.len() as Col;
+
+			if len == 0 || self.mode == Mode::Insert {
+				len = len + 1;
+			}
 
 			if pos.col > len {
 
@@ -468,42 +562,34 @@ impl Buffer {
 
 	/// move current cursor left
 	pub fn move_left(&mut self) {
-
 		self.move_to(Pos {
 			col: self.cursor.col - 1,
 			.. self.cursor
 		});
-
 	}
 
 	/// move current cursor right
 	pub fn move_right(&mut self) {
-
 		self.move_to(Pos {
 			col: self.cursor.col + 1,
 			.. self.cursor
 		});
-
 	}
 
 	/// move current cursor up
 	pub fn move_up(&mut self) {
-
 		self.move_to(Pos {
 			line: self.cursor.line - 1,
 			.. self.cursor
 		});
-
 	}
 
 	/// move current cursor down
 	pub fn move_down(&mut self) {
-
 		self.move_to(Pos {
 			line: self.cursor.line + 1,
 			.. self.cursor
 		});
-
 	}
 
 	/// move to the previous word
@@ -518,52 +604,6 @@ impl Buffer {
 		if let Some(pos) = self.next_word() {
 			self.move_to(pos);
 		}
-	}
-
-	/// start normal mode
-	pub fn start_normal(&mut self) {
-
-		if let Mode::Normal = self.mode {
-			return;
-		}
-
-		self.mode = Mode::Normal;
-		self.move_left();
-
-	}
-
-	/// start insert mode
-	pub fn start_insert(&mut self) {
-
-		if let Mode::Insert = self.mode {
-			return;
-		}
-
-		self.mode = Mode::Insert;
-		self.move_right();
-
-	}
-
-	/// start command mode
-	pub fn start_command(&mut self) {
-
-		if let Mode::Command = self.mode {
-			return;
-		}
-
-		self.mode = Mode::Command;
-
-	}
-
-	/// start search mode
-	pub fn start_search(&mut self) {
-
-		if let Mode::Search = self.mode {
-			return;
-		}
-
-		self.mode = Mode::Search;
-
 	}
 
 	/// get the position that a line starts, ignoring tabs and spaces

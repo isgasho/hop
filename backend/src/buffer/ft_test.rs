@@ -8,12 +8,12 @@ use pest::Parser;
 use pest_derive::Parser;
 
 #[derive(Parser)]
-#[grammar = "rust.pest"]
+#[grammar = "buffer/res/rust.syn"]
 pub struct RustParser;
 
 pub fn rust() -> FileType {
 
-	if let Ok(mut parsed) = RustParser::parse(Rule::line, "let mut a: i32 = 123;") {
+	if let Ok(mut parsed) = RustParser::parse(Rule::line, r#"let mut a: i32 = "yo";"#) {
 
 		if let Some(file) = parsed.next() {
 
@@ -22,6 +22,7 @@ pub fn rust() -> FileType {
 					Rule::keywords => println!("Keyword: {:?}", record.as_span()),
 					Rule::number => println!("Number: {:?}", record.as_span()),
 					Rule::types => println!("Type: {:?}", record.as_span()),
+					Rule::string => println!("String: {:?}", record.as_span()),
 					_ => {},
 				}
 			}

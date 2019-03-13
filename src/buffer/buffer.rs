@@ -508,6 +508,7 @@ impl Act for View {
 
 		}
 
+
 		g2d::pop();
 
 	}

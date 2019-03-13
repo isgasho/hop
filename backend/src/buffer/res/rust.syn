@@ -4,6 +4,7 @@ digit = { '0'..'9' }
 number = { DECIMAL | INTEGER }
 INTEGER = { ("+" | "-")? ~ (digit)+ }
 DECIMAL = { ("+" | "-")? ~ (digit)* ~ "." ~ (digit)+ }
+string = { " ~ (ANY)* ~ " }
 
 types = {
 	 "i8"
@@ -65,6 +66,6 @@ keywords = {
 	| "match"
 }
 
-token = { keywords | number | types | ANY }
-line = { (keywords | number | types | ANY)* }
+token = _{ keywords | number | types | string | ANY }
+line = { (token)* }
 
