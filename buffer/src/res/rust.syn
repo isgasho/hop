@@ -1,12 +1,9 @@
-space = _{ " " }
-alpha = { 'a'..'z' | 'A'..'Z' }
-digit = { '0'..'9' }
 number = { DECIMAL | INTEGER }
-INTEGER = { ("+" | "-")? ~ (digit)+ }
-DECIMAL = { ("+" | "-")? ~ (digit)* ~ "." ~ (digit)+ }
+INTEGER = _{ ("+" | "-")? ~ (ASCII_DIGIT)+ }
+DECIMAL = _{ ("+" | "-")? ~ (ASCII_DIGIT)* ~ "." ~ (ASCII_DIGIT)+ }
 string = { " ~ (ANY)* ~ " }
 
-types = {
+type = {
 	 "i8"
 	 | "i16"
 	 | "i32"
@@ -40,7 +37,7 @@ types = {
 	 | "PartialEq"
 }
 
-keywords = {
+keyword = {
 	"let"
 	| "mut"
 	| "return"
@@ -66,6 +63,8 @@ keywords = {
 	| "match"
 }
 
-token = _{ keywords | number | types | string | ANY }
+tab = { "\t" }
+
+token = _{ tab | keyword | number | type | string | ANY }
 line = { (token)* }
 

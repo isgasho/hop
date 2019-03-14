@@ -16,7 +16,7 @@ pub struct FileType {
 	pub expand_tab: bool,
 	pub indent_forward: Vec<Regex>,
 	pub indent_backward: Vec<Regex>,
-	pub syntax: Option<Syntax>,
+	pub syntax: Syntax,
 	pub pairs: HashMap<char, char>,
 
 }
@@ -40,7 +40,7 @@ impl Default for FileType {
 			indent_forward: vec![],
 			indent_backward: vec![],
 			pairs: HashMap::new(),
-			syntax: None,
+			syntax: Syntax::none(),
 		};
 	}
 }

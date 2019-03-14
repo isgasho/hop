@@ -17,6 +17,7 @@ pub struct Browser {
 
 pub struct Conf {
 	pub ignores: FilterList,
+	pub bookmarks: Vec<PathBuf>,
 }
 
 #[derive(Hash, Clone, PartialEq, Eq, Debug)]
@@ -47,6 +48,7 @@ impl Default for Conf {
 	fn default() -> Self {
 		return Self {
 			ignores: FilterList::new(&[".DS_Store", ".git"]),
+			bookmarks: vec![],
 		};
 	}
 }

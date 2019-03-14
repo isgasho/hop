@@ -8,7 +8,6 @@ use clipboard::ClipboardProvider;
 use clipboard::ClipboardContext;
 
 use super::*;
-use ft::*;
 
 pub struct Buffer {
 
@@ -38,17 +37,6 @@ pub struct State {
 #[derive(Clone)]
 pub struct Conf {
 	break_chars: HashSet<char>,
-}
-
-#[derive(Clone, Hash, PartialEq, Eq, Debug)]
-pub enum Span {
-	Normal,
-	Comment,
-	String,
-	Keyword,
-	Type,
-	Number,
-	Ident,
 }
 
 pub enum Event {
@@ -136,6 +124,46 @@ pub enum RenderedChunk {
 	Shift,
 }
 
+impl RenderedChunk {
+
+	pub fn from_plain(text: &str) -> Vec<Self> {
+
+		let mut chunks = vec![];
+		let mut last = 0;
+
+		for (i, ch) in text.char_indices() {
+
+			if ch == '\t' {
+
+				let prev = &text[last..i];
+
+				if !prev.is_empty() {
+
+					chunks.push(RenderedChunk::Text {
+						span: Span::Normal,
+						text: text[last..i].to_owned(),
+					});
+
+				}
+
+				last = i + 1;
+				chunks.push(RenderedChunk::Shift);
+
+			}
+
+		}
+
+		chunks.push(RenderedChunk::Text {
+			span: Span::Normal,
+			text: text[last..text.len()].to_owned(),
+		});
+
+		return chunks;
+
+	}
+
+}
+
 pub enum Error {
 	IO,
 }
@@ -179,39 +207,7 @@ impl Buffer {
 		self.rendered = self.content[start - 1..end]
 			.iter()
 			.map(|text| {
-
-				let mut chunks = vec![];
-				let mut last = 0;
-
-				for (i, ch) in text.char_indices() {
-
-					if ch == '\t' {
-
-						let prev = &text[last..i];
-
-						if !prev.is_empty() {
-
-							chunks.push(RenderedChunk::Text {
-								span: Span::Normal,
-								text: text[last..i].to_owned(),
-							});
-
-						}
-
-						last = i + 1;
-						chunks.push(RenderedChunk::Shift);
-
-					}
-
-				}
-
-				chunks.push(RenderedChunk::Text {
-					span: Span::Normal,
-					text: text[last..text.len()].to_owned(),
-				});
-
-				return chunks;
-
+				return self.filetype.syntax.parse(text);
 			})
 			.collect();
 
@@ -478,7 +474,7 @@ impl Buffer {
 
 		if let Some(line) = self.get_line_at(pos.line) {
 
-			if pos.col <= line.len() as Col {
+			if pos.col <= line.len() as Col + 1 {
 
 				let end = clamp(pos.col as i32 - 2, 0, line.len() as i32);
 
