@@ -175,7 +175,6 @@ version = "0.1.0"
 dependencies = [
  "clipboard 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "lsp-types 0.56.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pest 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pest_meta 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pest_vm 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -576,7 +575,7 @@ dependencies = [
  "fnv 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "gilrs-core 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "stdweb 0.4.14 (registry+https://github.com/rust-lang/crates.io-index)",
+ "stdweb 0.4.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "uuid 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "vec_map 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -592,7 +591,7 @@ dependencies = [
  "libudev-sys 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "nix 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "stdweb 0.4.14 (registry+https://github.com/rust-lang/crates.io-index)",
+ "stdweb 0.4.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "uuid 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "vec_map 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1021,7 +1020,7 @@ dependencies = [
 
 [[package]]
 name = "ordered-float"
-version = "1.0.1"
+version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "num-traits 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1357,7 +1356,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "approx 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "arrayvec 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "ordered-float 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ordered-float 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "stb_truetype 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1531,7 +1530,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "stdweb"
-version = "0.4.14"
+version = "0.4.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "discard 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1946,7 +1945,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum objc-foundation 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "1add1b659e36c9607c7aab864a76c7a4c2760cd0cd2e120f3fb8b952c7e22bf9"
 "checksum objc_id 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "c92d4ddb4bd7b50d730c215ff871754d0da6b2178849f8a2a2ab69712d0c073b"
 "checksum ogg 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d79f1db9148be9d0e174bb3ac890f6030fcb1ed947267c5a91ee4c91b5a91e15"
-"checksum ordered-float 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2f0015e9e8e28ee20c581cfbfe47c650cedeb9ed0721090e0b7ebb10b9cdbcc2"
+"checksum ordered-float 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "18869315e81473c951eb56ad5558bbc56978562d3ecfb87abb7a1e944cea4518"
 "checksum peeking_take_while 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "19b17cddbe7ec3f8bc800887bab5e717348c95ea2ca0b1bf0837fb964dc67099"
 "checksum percent-encoding 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "31010dd2e1ac33d5b46a5b413495239882813e0369f8ed8a5e266f173602f831"
 "checksum pest 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "54f0c72a98d8ab3c99560bfd16df8059cc10e1f9a8e83e6e3b97718dd766e9c3"
@@ -2005,7 +2004,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum smallvec 0.6.9 (registry+https://github.com/rust-lang/crates.io-index)" = "c4488ae950c49d403731982257768f48fada354a5203fe81f9bb6f43ca9002be"
 "checksum stb_truetype 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)" = "69b7df505db8e81d54ff8be4693421e5b543e08214bd8d99eb761fcb4d5668ba"
 "checksum stdweb 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "ef5430c8e36b713e13b48a9f709cc21e046723fe44ce34587b73a830203b533e"
-"checksum stdweb 0.4.14 (registry+https://github.com/rust-lang/crates.io-index)" = "5eafd45550bc406cfa179ea263ba0935da87adf220dab40e2c25c4675edc49d8"
+"checksum stdweb 0.4.15 (registry+https://github.com/rust-lang/crates.io-index)" = "a3edad410e603184d656e2abded5fd4d3d6e93d5763d21130dbaf99795db74eb"
 "checksum stdweb-derive 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "0e21ebd9179de08f2300a65454268a17ea3de204627458588c84319c4def3930"
 "checksum stdweb-internal-macros 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)" = "1635afd059cbfac7d5b1274f0c44cec110c1e013c48e8bbc22e07e52696cf887"
 "checksum stdweb-internal-runtime 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "a2a2f4a2eb556337b2d1a302630bbddf989ae383c70393e89b48152b9896cbda"

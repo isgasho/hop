@@ -1,22 +1,10 @@
 // wengwengweng
 
-use pest::Parser;
 use pest_vm::Vm;
 use pest_meta::parser;
-use pest_meta::{optimizer, validator};
+use pest_meta::optimizer;
 
 use super::*;
-
-#[derive(Clone, Hash, PartialEq, Eq, Debug)]
-pub enum Span {
-	Normal,
-	Comment,
-	String,
-	Keyword,
-	Type,
-	Number,
-	Ident,
-}
 
 pub struct Syntax {
 	vm: Option<Vm>,
@@ -27,8 +15,11 @@ impl Syntax {
 	pub fn new(code: &str) -> Self {
 
 		let mut vm = None;
+		let mut code = String::from(code);
 
-		if let Ok(pairs) = parser::parse(parser::Rule::grammar_rules, code) {
+		code.insert_str(0, include_str!("res/default.syn"));
+
+		if let Ok(pairs) = parser::parse(parser::Rule::grammar_rules, &code) {
 			if let Ok(ast) = parser::consume_rules(pairs) {
 				vm = Some(Vm::new(optimizer::optimize(ast.clone())));
 			}
@@ -73,7 +64,7 @@ impl Syntax {
 
 						}
 
-						if rule == "tab" {
+						if rule == "TAB" {
 							rendered.push(RenderedChunk::Shift);
 						} else {
 							rendered.push(RenderedChunk::Text {
@@ -110,6 +101,19 @@ impl Syntax {
 
 }
 
+#[derive(Clone, Hash, PartialEq, Eq, Debug)]
+pub enum Span {
+	Normal,
+	Comment,
+	String,
+	Keyword,
+	PreProc,
+	Type,
+	Number,
+	Ident,
+	Special,
+}
+
 impl From<&str> for Span {
 	fn from(r: &str) -> Span {
 		return match r {
@@ -117,6 +121,10 @@ impl From<&str> for Span {
 			"type" => Span::Type,
 			"string" => Span::String,
 			"number" => Span::Number,
+			"comment" => Span::Comment,
+			"ident" => Span::Ident,
+			"preproc" => Span::PreProc,
+			"special" => Span::Special,
 			_ => Span::Normal,
 		};
 	}

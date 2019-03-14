@@ -2,6 +2,7 @@ number = { DECIMAL | INTEGER }
 INTEGER = _{ ("+" | "-")? ~ (ASCII_DIGIT)+ }
 DECIMAL = _{ ("+" | "-")? ~ (ASCII_DIGIT)* ~ "." ~ (ASCII_DIGIT)+ }
 string = { " ~ (ANY)* ~ " }
+comment = { "//" ~ (ANY)* }
 
 type = {
 	 "i8"
@@ -63,8 +64,6 @@ keyword = {
 	| "match"
 }
 
-tab = { "\t" }
-
-token = _{ tab | keyword | number | type | string | ANY }
+token = _{ comment | keyword | number | type | string | TAB | ANY }
 line = { (token)* }
 

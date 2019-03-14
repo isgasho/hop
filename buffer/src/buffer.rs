@@ -204,6 +204,9 @@ impl Buffer {
 
 	pub fn render(&mut self, start: usize, end: usize) {
 
+		let start = clamp(start, 1, self.content.len());
+		let end = clamp(end, 1, self.content.len());
+
 		self.rendered = self.content[start - 1..end]
 			.iter()
 			.map(|text| {
@@ -833,6 +836,7 @@ impl Buffer {
 	/// comment current line
 	pub fn comment(&mut self) {
 		self.comment_at(self.cursor.line);
+		self.cursor = self.cursor_bound(self.cursor);
 	}
 
 	// todo: better matching
@@ -846,6 +850,7 @@ impl Buffer {
 				}
 			}
 		}
+		self.cursor = self.cursor_bound(self.cursor);
 	}
 
 	/// uncomment current line
