@@ -151,6 +151,8 @@ impl Act for View {
 								'H' => self.buffer.move_prev_word(),
 								'L' => self.buffer.move_next_word(),
 								'/' => self.buffer.toggle_comment(),
+								'q' => self.buffer.indent_backward(),
+								'e' => self.buffer.indent_forward(),
 								_ => {},
 							}
 

@@ -70,6 +70,7 @@ impl Default for Conf {
 		break_chars.insert('-');
 		break_chars.insert('@');
 		break_chars.insert('\'');
+		break_chars.insert('\t');
 
 		return Self {
 			break_chars: break_chars,
@@ -777,16 +778,13 @@ impl Buffer {
 			let mut after = String::from(&line[pos.col as usize - 1..line.len()]);
 			let indents = self.get_expected_indent_at(pos.line + 1).unwrap_or(0);
 
-			for _ in 0..indents {
-				after.insert(0, '\t');
-			}
-
 			self.push_undo();
 			self.insert_line_at(pos.line + 1);
 			self.set_line_at(pos.line, &before);
 			self.set_line_at(pos.line + 1, &after);
+			self.set_indent_at(pos.line + 1, indents);
 			pos.line += 1;
-// 			pos.col = indents + 1;
+			pos.col = indents + 1;
 
 			return self.cursor_bound(pos);
 
@@ -871,6 +869,55 @@ impl Buffer {
 		self.toggle_comment_at(self.cursor.line);
 	}
 
+	/// set a line's indent level
+	pub fn set_indent_at(&mut self, ln: Line, level: IndentLevel) {
+
+		if let Some(mut line) = self.get_line_at(ln).map(Clone::clone) {
+
+			if let Some(indent) = self.get_indent_at(ln) {
+
+				line.replace_range(0..indent as usize, "");
+
+				for _ in 0..level {
+					line.insert(0, '\t');
+				}
+
+				self.set_line_at(ln, &line);
+
+			}
+
+		}
+
+	}
+
+	/// indent a line forward
+	pub fn indent_forward_at(&mut self, ln: Line) {
+		if let Some(mut line) = self.get_line_at(ln).map(Clone::clone) {
+			line.insert(0, '\t');
+			self.set_line_at(ln, &line);
+		}
+	}
+
+	/// indent current line forward
+	pub fn indent_forward(&mut self) {
+		self.indent_forward_at(self.cursor.line);
+	}
+
+	/// indent a line backwards
+	pub fn indent_backward_at(&mut self, ln: Line) {
+		if let Some(mut line) = self.get_line_at(ln).map(Clone::clone) {
+			if line.chars().next() == Some('\t') {
+				line.replace_range(0..1, "");
+				self.set_line_at(ln, &line);
+			}
+		}
+	}
+
+	/// indent current line backward
+	pub fn indent_backward(&mut self) {
+		self.indent_backward_at(self.cursor.line);
+	}
+
 	// todo: ignore comments
 	/// get indent level of a line
 	pub fn get_indent_at(&self, ln: Line) -> Option<IndentLevel> {
@@ -922,7 +969,7 @@ impl Buffer {
 	/// apply expected indent level of a line
 	pub fn apply_expected_indent_at(&mut self, ln: Line) {
 		if let Some(indent) = self.get_expected_indent_at(ln) {
-			// ...
+			self.set_indent_at(ln, indent);
 		}
 	}
 
