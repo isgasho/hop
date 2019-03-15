@@ -361,7 +361,7 @@ impl Act for View {
 				// ...
 			},
 
-			Mode::Search => {
+			Mode::Search { .. } => {
 
 				if input::key_pressed(Key::Escape) {
 					self.buffer.start_normal();
@@ -462,48 +462,30 @@ impl Act for View {
 
 				}
 
-				match chunk {
+				let splitted = chunk.text.split('\t');
+				let count = chunk.text.split('\t').count();
 
-					RenderedChunk::Text { span, text, } => {
+				for (i, text) in splitted.enumerate() {
 
-						if let Some(style) = self.conf.theme.spans.get(span) {
+					if let Some(style) = self.conf.theme.spans.get(&chunk.span) {
+						g2d::color(style.color);
+					} else {
+						g2d::color(self.conf.theme.normal.color);
+					}
 
-							g2d::color(style.color);
+					g2d::text(text);
+					g2d::translate(vec2!(text.len() * g2d::font_width() as usize, 0));
 
-							if let FontStyle::Bold = style.style {
-								// ...
-							} else {
-								// ...
-							}
-
-						} else {
-
-							g2d::color(self.conf.theme.normal.color);
-
-						}
-
-						g2d::text(&text);
-						g2d::translate(vec2!(tw * text.len() as u32, 0));
-						col += text.len();
-						shift_col += text.len();
-
-					},
-
-					RenderedChunk::Shift => {
+					if i < count - 1 {
 
 						if self.conf.show_indent {
 							g2d::color(color!(0.24, 0.27, 0.33, 1));
 							g2d::text("|");
 						}
 
-						let sw = self.conf.shift_width;
-						let offset = sw - shift_col as u32 % sw;
+						g2d::translate(vec2!(g2d::font_width() * self.conf.shift_width, 0));
 
-						g2d::translate(vec2!(tw * offset as u32, 0));
-						shift_col += offset as usize;
-						col += 1;
-
-					},
+					}
 
 				}
 

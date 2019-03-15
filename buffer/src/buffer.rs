@@ -4,6 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::collections::HashSet;
 
+use regex::Regex;
 use clipboard::ClipboardProvider;
 use clipboard::ClipboardContext;
 
@@ -15,7 +16,7 @@ pub struct Buffer {
 	pub cursor: Pos,
 	pub path: PathBuf,
 	pub content: Vec<String>,
-	pub rendered: Vec<Vec<RenderedChunk>>,
+	pub rendered: Vec<Vec<StyledText>>,
 	pub undo_stack: Vec<State>,
 	pub redo_stack: Vec<State>,
 	pub clipboard: ClipboardContext,
@@ -107,7 +108,9 @@ pub enum Mode {
 	Insert,
 	Command,
 	Select(Vec<Range>),
-	Search,
+	Search {
+		text: String,
+	},
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -116,51 +119,18 @@ pub struct Range {
 	pub end: Pos,
 }
 
-#[derive(Debug, Clone)]
-pub enum RenderedChunk {
-	Text {
-		span: Span,
-		text: String,
-	},
-	Shift,
+pub struct StyledText {
+	pub span: Span,
+	pub text: String,
 }
 
-impl RenderedChunk {
+impl StyledText {
 
 	pub fn from_plain(text: &str) -> Vec<Self> {
-
-		let mut chunks = vec![];
-		let mut last = 0;
-
-		for (i, ch) in text.char_indices() {
-
-			if ch == '\t' {
-
-				let prev = &text[last..i];
-
-				if !prev.is_empty() {
-
-					chunks.push(RenderedChunk::Text {
-						span: Span::Normal,
-						text: text[last..i].to_owned(),
-					});
-
-				}
-
-				last = i + 1;
-				chunks.push(RenderedChunk::Shift);
-
-			}
-
-		}
-
-		chunks.push(RenderedChunk::Text {
+		return vec![Self {
 			span: Span::Normal,
-			text: text[last..text.len()].to_owned(),
-		});
-
-		return chunks;
-
+			text: String::from(text),
+		}];
 	}
 
 }
@@ -343,11 +313,13 @@ impl Buffer {
 	/// start search mode
 	pub fn start_search(&mut self) {
 
-		if let Mode::Search = self.mode {
+		if let Mode::Search { .. } = self.mode {
 			return;
 		}
 
-		self.mode = Mode::Search;
+		self.mode = Mode::Search {
+			text: String::new(),
+		};
 
 	}
 
@@ -1048,7 +1020,7 @@ impl Buffer {
 				},
 			});
 		}
-		return self.cursor;
+		return pos;
 	}
 
 	/// delete the word before the cursor

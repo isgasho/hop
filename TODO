@@ -1,21 +1,14 @@
 # wengwengweng
 
 == DOING
-- buffer input stream
+- visual
+- fix cursor
 
 == TODO
 - browser scrolling
-- global ui widgets
-- visual
-- buffer get visible lines
-- buffer text formatting
-- seperate backend and frontend
-- buffer undo
-- fix buffer cursor for tabs
-- smooth scroll simulation
-- detect tabs for plain syntaxes
 
 == DONE
 - browser working
 - buffer syntax highlighting
+- better tab handling
 

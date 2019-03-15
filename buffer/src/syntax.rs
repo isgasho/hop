@@ -15,11 +15,8 @@ impl Syntax {
 	pub fn new(code: &str) -> Self {
 
 		let mut vm = None;
-		let mut code = String::from(code);
 
-		code.insert_str(0, include_str!("res/default.syn"));
-
-		if let Ok(pairs) = parser::parse(parser::Rule::grammar_rules, &code) {
+		if let Ok(pairs) = parser::parse(parser::Rule::grammar_rules, code) {
 			if let Ok(ast) = parser::consume_rules(pairs) {
 				vm = Some(Vm::new(optimizer::optimize(ast.clone())));
 			}
@@ -37,7 +34,7 @@ impl Syntax {
 		};
 	}
 
-	pub fn parse(&self, line: &str) -> Vec<RenderedChunk> {
+	pub fn parse(&self, line: &str) -> Vec<StyledText> {
 
 		if let Some(vm) = &self.vm {
 
@@ -57,21 +54,17 @@ impl Syntax {
 
 						if start > last {
 
-							rendered.push(RenderedChunk::Text {
+							rendered.push(StyledText {
 								span: Span::Normal,
 								text: String::from(&line[last..start]),
 							});
 
 						}
 
-						if rule == "TAB" {
-							rendered.push(RenderedChunk::Shift);
-						} else {
-							rendered.push(RenderedChunk::Text {
-								span: rule.into(),
-								text: String::from(&line[start..end]),
-							});
-						}
+						rendered.push(StyledText {
+							span: rule.into(),
+							text: String::from(&line[start..end]),
+						});
 
 						last = end;
 
@@ -79,7 +72,7 @@ impl Syntax {
 
 					if last < line.len() {
 
-						rendered.push(RenderedChunk::Text {
+						rendered.push(StyledText {
 							span: Span::Normal,
 							text: String::from(&line[last..line.len()]),
 						});
@@ -94,7 +87,7 @@ impl Syntax {
 
 		}
 
-		return RenderedChunk::from_plain(line);
+		return StyledText::from_plain(line);
 
 	}
 
