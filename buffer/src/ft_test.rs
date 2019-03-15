@@ -2,6 +2,8 @@
 
 use std::collections::HashMap;
 
+use regex::Regex;
+
 use super::*;
 
 pub fn rust() -> FileType {
@@ -18,12 +20,13 @@ pub fn rust() -> FileType {
 	return FileType {
 
 		name: String::from("rust"),
+		match_fname: Some(Regex::new(".rs$").unwrap()),
 		comment: Some(String::from("//")),
 		shift_width: 4,
 		expand_tab: false,
 		auto_indent: true,
-		indent_forward: vec![],
-		indent_backward: vec![],
+		indent_forward: Some(Regex::new(r#"\{$"#).unwrap()),
+		indent_backward: Some(Regex::new(r#"^\s*\}"#).unwrap()),
 		pairs: pairs,
 		syntax: syntax,
 

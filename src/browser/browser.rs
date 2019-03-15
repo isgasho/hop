@@ -147,6 +147,16 @@ impl Act for View {
 			self.browser.move_up();
 		}
 
+		if let Some(scroll) = input::scroll_delta() {
+
+			if scroll.y > 0 {
+				self.browser.move_up();
+			} else if scroll.y < 0 {
+				self.browser.move_down();
+			}
+
+		}
+
 		if let Mode::Preview = self.mode {
 
 			if let Some(item) = self.browser.selected() {

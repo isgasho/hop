@@ -172,6 +172,9 @@ impl Buffer {
 
 	pub fn from_file(path: PathBuf) -> Result<Self, Error> {
 
+		let mut registry = FTRegistry::new();
+		let fname = format!("{}", path.display());
+
 		let mut buf = Self {
 
 			mode: Mode::Normal,
@@ -772,11 +775,7 @@ impl Buffer {
 
 			let before = String::from(&line[0..pos.col as usize - 1]);
 			let mut after = String::from(&line[pos.col as usize - 1..line.len()]);
-			let mut indents = 0;
-
-			if let Some(i) = self.get_indents(pos.line) {
-				indents += i;
-			}
+			let indents = self.get_expected_indent_at(pos.line + 1).unwrap_or(0);
 
 			for _ in 0..indents {
 				after.insert(0, '\t');
@@ -787,7 +786,7 @@ impl Buffer {
 			self.set_line_at(pos.line, &before);
 			self.set_line_at(pos.line + 1, &after);
 			pos.line += 1;
-			pos.col = indents + 1;
+// 			pos.col = indents + 1;
 
 			return self.cursor_bound(pos);
 
@@ -874,7 +873,7 @@ impl Buffer {
 
 	// todo: ignore comments
 	/// get indent level of a line
-	pub fn get_indents(&mut self, ln: Line) -> Option<IndentLevel> {
+	pub fn get_indent_at(&self, ln: Line) -> Option<IndentLevel> {
 
 		if let Some(line) = self.get_line_at(ln) {
 
@@ -894,6 +893,37 @@ impl Buffer {
 
 		return None;
 
+	}
+
+	/// get expected indent level of a line
+	pub fn get_expected_indent_at(&mut self, ln: Line) -> Option<IndentLevel> {
+
+		if !self.filetype.auto_indent {
+			return Some(0);
+		}
+
+		if let Some(prev_line) = self.get_line_at(ln - 1) {
+			if let Some(mut indent) = self.get_indent_at(ln - 1) {
+				if let Some(line) = self.get_line_at(ln) {
+					if let Some(forward_pat) = &self.filetype.indent_forward {
+						if forward_pat.is_match(prev_line) {
+							indent += 1;
+						}
+					}
+				}
+				return Some(indent);
+			}
+		}
+
+		return None;
+
+	}
+
+	/// apply expected indent level of a line
+	pub fn apply_expected_indent_at(&mut self, ln: Line) {
+		if let Some(indent) = self.get_expected_indent_at(ln) {
+			// ...
+		}
 	}
 
 	/// delete char at specified position

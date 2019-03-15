@@ -40,8 +40,6 @@ impl Style {
 pub enum FontStyle {
 	Normal,
 	Bold,
-	Italic,
-	BoldItalic,
 }
 
 impl Default for Theme {
@@ -51,7 +49,7 @@ impl Default for Theme {
 		let black = color!(0.10, 0.13, 0.18, 1.0);
 		let white = color!(0.78, 0.80, 0.83, 1.0);
 		let grey = color!(0.24, 0.27, 0.33, 1.0);
-		let yellow = color!(0.98, 0.78, 0.39, 1.0);
+		let yellow = color!(1, 0.8, 0.42, 1.0);
 		let green = color!(0.60, 0.78, 0.58, 1.0);
 		let purple = color!(0.77, 0.58, 0.77, 1.0);
 		let orange = color!(0.98, 0.57, 0.34, 1.0);
@@ -65,10 +63,12 @@ impl Default for Theme {
 
 		spans.insert(Span::Normal, Style::new(white, none, FontStyle::Normal));
 		spans.insert(Span::Comment, Style::new(grey, none, FontStyle::Normal));
+		spans.insert(Span::PreProc, Style::new(yellow, none, FontStyle::Normal));
 		spans.insert(Span::String, Style::new(green, none, FontStyle::Normal));
 		spans.insert(Span::Keyword, Style::new(purple, none, FontStyle::Normal));
 		spans.insert(Span::Type, Style::new(yellow, none, FontStyle::Bold));
-		spans.insert(Span::Number, Style::new(orange, none, FontStyle::Bold));
+		spans.insert(Span::Opt, Style::new(yellow, none, FontStyle::Normal));
+		spans.insert(Span::Value, Style::new(orange, none, FontStyle::Bold));
 		spans.insert(Span::Ident, Style::new(blue, none, FontStyle::Bold));
 
 		return Self {
@@ -78,8 +78,8 @@ impl Default for Theme {
 			search: Style::new(white, yellow, FontStyle::Bold),
 			highlight: Style::new(white, yellow, FontStyle::Bold),
 			background: black,
-			cursor: color!(1.0, 1.0, 1.0, 0.4),
-			cursor_line: color!(1.0, 1.0, 1.0, 0.04),
+			cursor: color!(1.0, 1.0, 1.0, 0.5),
+			cursor_line: color!(1.0, 1.0, 1.0, 0.03),
 
 		};
 	}

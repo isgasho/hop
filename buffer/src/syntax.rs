@@ -109,7 +109,8 @@ pub enum Span {
 	Keyword,
 	PreProc,
 	Type,
-	Number,
+	Value,
+	Opt,
 	Ident,
 	Special,
 }
@@ -120,11 +121,12 @@ impl From<&str> for Span {
 			"keyword" => Span::Keyword,
 			"type" => Span::Type,
 			"string" => Span::String,
-			"number" => Span::Number,
 			"comment" => Span::Comment,
 			"ident" => Span::Ident,
 			"preproc" => Span::PreProc,
 			"special" => Span::Special,
+			"value" => Span::Value,
+			"opt" => Span::Opt,
 			_ => Span::Normal,
 		};
 	}

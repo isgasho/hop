@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::any::Any;
 use std::collections::BTreeMap;
 
-use gctx::ctx;
+use gctx::*;
 use dirty::*;
 
 pub mod browser;
@@ -80,19 +80,19 @@ impl HoP {
 }
 
 fn start<A: Act>(act: A) -> Id {
-	return ctx_mut().start(act);
+	return ctx_mut!(HOP).start(act);
 }
 
 fn close(id: Id) {
-	return ctx_mut().close(id);
+	return ctx_mut!(HOP).close(id);
 }
 
 fn update() {
-	return ctx_mut().update();
+	return ctx_mut!(HOP).update();
 }
 
 fn draw() {
-	return ctx_get().draw();
+	return ctx_get!(HOP).draw();
 }
 
 fn main() {
@@ -100,7 +100,7 @@ fn main() {
 	app::init();
 	window::init("HoP", 960, 640);
 
-	ctx_init(HoP::new());
+	ctx_init!(HOP, HoP::new());
 	start(browser::View::new(Browser::new(PathBuf::from("/Users/t/Things/hop"))));
 
 	app::run(|| {

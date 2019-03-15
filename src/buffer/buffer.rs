@@ -33,7 +33,7 @@ impl Default for ViewConf {
 		return Self {
 			scroll_off: 3,
 			scale: 1.5,
-			line_space: 2,
+			line_space: 1,
 			margin_left: 12,
 			theme: Theme::default(),
 			line_num: false,
@@ -465,9 +465,19 @@ impl Act for View {
 					RenderedChunk::Text { span, text, } => {
 
 						if let Some(style) = self.conf.theme.spans.get(span) {
+
 							g2d::color(style.color);
+
+							if let FontStyle::Bold = style.style {
+								// ...
+							} else {
+								// ...
+							}
+
 						} else {
+
 							g2d::color(self.conf.theme.normal.color);
+
 						}
 
 						g2d::text(&text);

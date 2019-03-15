@@ -15,7 +15,7 @@ members = [
 ]
 
 [dependencies]
-gctx = "0.1.0"
+gctx = "0.2.0"
 dirty = { git = "https://github.com/slmjkdbtl/DIRTY" }
 suite = { path = "suite" }
 

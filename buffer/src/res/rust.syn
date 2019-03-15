@@ -1,7 +1,7 @@
 number = { DECIMAL | INTEGER }
 INTEGER = _{ ("+" | "-")? ~ (ASCII_DIGIT)+ }
 DECIMAL = _{ ("+" | "-")? ~ (ASCII_DIGIT)* ~ "." ~ (ASCII_DIGIT)+ }
-string = { " ~ (ANY)* ~ " }
+string = @{ "\"" ~ (!("\"") ~ ANY)* ~ "\""}
 comment = { "//" ~ (ANY)* }
 
 type = {
@@ -64,6 +64,23 @@ keyword = {
 	| "match"
 }
 
-token = _{ comment | keyword | number | type | string | TAB | ANY }
+value = {
+	"Some"
+	| "None"
+	| "Ok"
+	| "Err"
+	| "self"
+	| "true"
+	| "false"
+	| number
+}
+
+opt = {
+	"&"
+}
+
+preproc = { "#[" ~ (!("]") ~ ANY)* ~ "]" }
+
+token = _{ comment | keyword | type | opt | string | preproc | value | TAB | ANY }
 line = { (token)* }
 
