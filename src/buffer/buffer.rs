@@ -475,6 +475,7 @@ impl Act for View {
 
 					g2d::text(text);
 					g2d::translate(vec2!(text.len() * g2d::font_width() as usize, 0));
+					col += text.len();
 
 					if i < count - 1 {
 
@@ -484,6 +485,7 @@ impl Act for View {
 						}
 
 						g2d::translate(vec2!(g2d::font_width() * self.conf.shift_width, 0));
+						col += 1;
 
 					}
 

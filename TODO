@@ -2,7 +2,7 @@
 
 == DOING
 - visual
-- fix cursor
+- fix tab columns
 
 == TODO
 - browser scrolling
@@ -11,4 +11,5 @@
 - browser working
 - buffer syntax highlighting
 - better tab handling
+- fix cursor
 
