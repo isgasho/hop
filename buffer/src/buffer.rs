@@ -747,7 +747,7 @@ impl Buffer {
 		if let Some(line) = self.get_line_at(pos.line).map(Clone::clone) {
 
 			let before = String::from(&line[0..pos.col as usize - 1]);
-			let mut after = String::from(&line[pos.col as usize - 1..line.len()]);
+			let after = String::from(&line[pos.col as usize - 1..line.len()]);
 			let indents = self.get_expected_indent_at(pos.line + 1).unwrap_or(0);
 
 			self.push_undo();

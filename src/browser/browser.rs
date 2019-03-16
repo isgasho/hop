@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use dirty::*;
-use input::Key;
+use window::Key;
 
 use crate::Act;
 use suite::buffer::Buffer;
@@ -127,27 +127,27 @@ impl Act for View {
 
 	fn update(&mut self) {
 
-		if input::key_pressed(Key::Backspace) {
+		if window::key_pressed(Key::Back) {
 			self.browser.back();
 		}
 
-		if input::key_pressed(Key::Return) {
+		if window::key_pressed(Key::Return) {
 			self.enter();
 		}
 
-		if input::key_pressed(Key::J) {
+		if window::key_pressed(Key::J) {
 			self.browser.move_down();
 		}
 
-		if input::key_pressed(Key::Space) {
+		if window::key_pressed(Key::Space) {
 			self.toggle_preview();
 		}
 
-		if input::key_pressed(Key::K) {
+		if window::key_pressed(Key::K) {
 			self.browser.move_up();
 		}
 
-		if let Some(scroll) = input::scroll_delta() {
+		if let Some(scroll) = window::scroll_delta() {
 
 			if scroll.y > 0 {
 				self.browser.move_up();

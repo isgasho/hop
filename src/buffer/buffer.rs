@@ -2,9 +2,8 @@
 
 use dirty::*;
 use dirty::math::*;
-use input::Key;
-use input::Mouse;
-use input::TextInput;
+use window::Key;
+use window::Mouse;
 
 use crate::Act;
 use suite::browser::Browser;
@@ -129,95 +128,60 @@ impl Act for View {
 
 			Mode::Normal => {
 
-				if let Some(i) = input::text_input() {
+				if let Some(ch) = window::char_input() {
 
-					match i {
-
-						TextInput::Char(ch) => {
-
-							match ch {
-								'y' => self.buffer.copy_line(),
-								'h' => self.buffer.move_left(),
-								'l' => self.buffer.move_right(),
-								'j' => self.buffer.move_down(),
-								'k' => self.buffer.move_up(),
-								'u' => self.buffer.undo(),
-								'o' => self.buffer.redo(),
-								'd' => self.buffer.del_line(),
-								'<' => self.buffer.move_line_start_insert(),
-								'>' => self.buffer.move_line_end_insert(),
-								':' => self.buffer.start_command(),
-								'?' => self.buffer.start_search(),
-								'H' => self.buffer.move_prev_word(),
-								'L' => self.buffer.move_next_word(),
-								'/' => self.buffer.toggle_comment(),
-								'q' => self.buffer.indent_backward(),
-								'e' => self.buffer.indent_forward(),
-								_ => {},
-							}
-
-						},
-
-						TextInput::Backspace => {
-							// ...
-						},
-
-						TextInput::Return => {
-							// ...
-						},
-
-						TextInput::Tab => {
-							// ...
-						},
-
-						TextInput::Up => {
-							self.scroll_up();
-						},
-
-						TextInput::Down => {
-							self.scroll_down();
-						},
-
-						TextInput::Left => {
-							// ...
-						},
-
-						TextInput::Right => {
-							// ...
-						},
+					match ch {
+						'y' => self.buffer.copy_line(),
+						'h' => self.buffer.move_left(),
+						'l' => self.buffer.move_right(),
+						'j' => self.buffer.move_down(),
+						'k' => self.buffer.move_up(),
+						'u' => self.buffer.undo(),
+						'o' => self.buffer.redo(),
+						'd' => self.buffer.del_line(),
+						'<' => self.buffer.move_line_start_insert(),
+						'>' => self.buffer.move_line_end_insert(),
+						':' => self.buffer.start_command(),
+						'?' => self.buffer.start_search(),
+						'H' => self.buffer.move_prev_word(),
+						'L' => self.buffer.move_next_word(),
+						'/' => self.buffer.toggle_comment(),
+						'q' => self.buffer.indent_backward(),
+						'e' => self.buffer.indent_forward(),
+						_ => {},
 
 					}
 
 				}
 
-				if input::mouse_pressed(Mouse::Left) {
+				if window::mouse_pressed(Mouse::Left) {
 
-					let mpos: Vec2 = input::mouse_pos().into();
+					let mpos: Vec2 = window::mouse_pos().into();
 
 				}
 
-				if input::key_pressed(Key::Return) {
+				if window::key_pressed(Key::Return) {
 					self.buffer.start_insert();
 				}
 
-				if input::key_pressed(Key::Tab) {
+				if window::key_pressed(Key::Tab) {
 					self.start_browser();
 				}
 
-				if input::key_pressed(Key::W) {
+				if window::key_pressed(Key::W) {
 					self.buffer.write();
 				}
 
-				if let Some(scroll) = input::scroll_delta() {
+				if let Some(scroll) = window::scroll_delta() {
 
-					if input::key_down(Key::LAlt) {
+					if window::key_down(Key::LAlt) {
 
 						if scroll.y > 0 {
-							for _ in 0..scroll.y.abs() {
+							for _ in 0..scroll.y.abs() / 2 {
 								self.scroll_up();
 							}
 						} else if scroll.y < 0 {
-							for _ in 0..scroll.y.abs() {
+							for _ in 0..scroll.y.abs() / 2 {
 								self.scroll_down();
 							}
 						}
@@ -225,11 +189,11 @@ impl Act for View {
 					} else {
 
 						if scroll.y > 0 {
-							for _ in 0..scroll.y.abs() {
+							for _ in 0..scroll.y.abs() / 2 {
 								self.buffer.move_up();
 							}
 						} else if scroll.y < 0 {
-							for _ in 0..scroll.y.abs() {
+							for _ in 0..scroll.y.abs() / 2 {
 								self.buffer.move_down();
 							}
 						}
@@ -242,69 +206,58 @@ impl Act for View {
 
 			Mode::Insert => {
 
-				if let Some(i) = input::text_input() {
+				if window::key_pressed_repeat(Key::Back) {
+					if window::key_down(Key::LAlt) {
+						self.buffer.del_word();
+					} else {
+						self.buffer.del();
+					}
+				}
 
-					match i {
+				if window::key_pressed_repeat(Key::Return) {
 
-						TextInput::Char(ch) => {
+					if window::key_down(Key::LAlt) {
+					} else {
+						self.buffer.break_line();
+					}
 
-							if input::key_down(Key::LAlt) {
-								// ...
-							} else {
-								self.buffer.insert(ch);
-							}
+				}
 
-						},
+				if window::key_pressed_repeat(Key::Up) {
+					self.scroll_up();
+				}
 
-						TextInput::Backspace => {
+				if window::key_pressed_repeat(Key::Down) {
+					self.scroll_down();
+				}
 
-							if input::key_down(Key::LAlt) {
-								self.buffer.del_word();
-							} else {
-								self.buffer.del();
-							}
+				if window::key_pressed_repeat(Key::Left) {
+					self.buffer.move_left();
+				}
 
-						},
+				if window::key_pressed_repeat(Key::Right) {
+					self.buffer.move_right();
+				}
 
-						TextInput::Return => {
+				if let Some(ch) = window::char_input() {
 
-							if input::key_down(Key::LAlt) {
-								// ..
-							} else {
-								self.buffer.break_line();
-							}
+					if window::key_down(Key::LAlt) {
+						// ...
+					} else {
 
-						},
-
-						TextInput::Tab => {
-							self.buffer.insert('\t');
-						},
-
-						TextInput::Up => {
-							self.scroll_up();
-						},
-
-						TextInput::Down => {
-							self.scroll_down();
-						},
-
-						TextInput::Left => {
-							self.buffer.move_left();
-						},
-
-						TextInput::Right => {
-							self.buffer.move_right();
-						},
+						if (ch != '\n' && ch != '\r' && ch !='\u{7f}' && ch != '\u{1b}') {
+							self.buffer.insert(ch);
+						}
 
 					}
 
 				}
 
-				if input::key_pressed(Key::Escape) {
+				if window::key_pressed(Key::Escape) {
 					self.buffer.start_normal();
 				}
 
-				if let Some(scroll) = input::scroll_delta() {
+				if let Some(scroll) = window::scroll_delta() {
 
 					if scroll.y > 0 {
 						self.scroll_up();
@@ -318,40 +271,7 @@ impl Act for View {
 
 			Mode::Command => {
 
-				if let Some(i) = input::text_input() {
-
-					match i {
-
-						TextInput::Char(ch) => {
-							// ...
-						},
-						TextInput::Backspace => {
-							// ...
-						},
-						TextInput::Return => {
-							// ...
-						},
-						TextInput::Tab => {
-							// ...
-						},
-						TextInput::Up => {
-							// ...
-						},
-						TextInput::Down => {
-							// ...
-						},
-						TextInput::Left => {
-							// ...
-						},
-						TextInput::Right => {
-							// ...
-						},
-
-					}
-
-				}
-
-				if input::key_pressed(Key::Escape) {
+				if window::key_pressed(Key::Escape) {
 					self.buffer.start_normal();
 				}
 
@@ -363,7 +283,7 @@ impl Act for View {
 
 			Mode::Search { .. } => {
 
-				if input::key_pressed(Key::Escape) {
+				if window::key_pressed(Key::Escape) {
 					self.buffer.start_normal();
 				}
 
@@ -467,6 +387,7 @@ impl Act for View {
 
 				for (i, text) in splitted.enumerate() {
 
+					// text
 					if let Some(style) = self.conf.theme.spans.get(&chunk.span) {
 						g2d::color(style.color);
 					} else {
@@ -478,6 +399,7 @@ impl Act for View {
 					col += text.len();
 					shift_col += text.len();
 
+					// tab shift
 					if i < count - 1 {
 
 						if self.conf.show_indent {
@@ -521,7 +443,6 @@ impl Act for View {
 			g2d::translate(vec2!(0, th));
 
 		}
-
 
 		g2d::pop();
 
