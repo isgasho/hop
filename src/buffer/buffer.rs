@@ -463,7 +463,7 @@ impl Act for View {
 				}
 
 				let splitted = chunk.text.split('\t');
-				let count = chunk.text.split('\t').count();
+				let count = splitted.clone().count();
 
 				for (i, text) in splitted.enumerate() {
 
@@ -476,6 +476,7 @@ impl Act for View {
 					g2d::text(text);
 					g2d::translate(vec2!(text.len() * g2d::font_width() as usize, 0));
 					col += text.len();
+					shift_col += text.len();
 
 					if i < count - 1 {
 
@@ -484,7 +485,11 @@ impl Act for View {
 							g2d::text("|");
 						}
 
-						g2d::translate(vec2!(g2d::font_width() * self.conf.shift_width, 0));
+						let sw = self.conf.shift_width;
+						let offset = sw - shift_col as u32 % sw;
+
+						g2d::translate(vec2!(tw * offset as u32, 0));
+						shift_col += offset as usize;
 						col += 1;
 
 					}

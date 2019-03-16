@@ -34,7 +34,7 @@ impl Syntax {
 		};
 	}
 
-	pub fn parse(&self, line: &str) -> Vec<StyledText> {
+	pub fn parse(&self, line: &str) -> Vec<SpannedText> {
 
 		if let Some(vm) = &self.vm {
 
@@ -54,14 +54,14 @@ impl Syntax {
 
 						if start > last {
 
-							rendered.push(StyledText {
+							rendered.push(SpannedText {
 								span: Span::Normal,
 								text: String::from(&line[last..start]),
 							});
 
 						}
 
-						rendered.push(StyledText {
+						rendered.push(SpannedText {
 							span: rule.into(),
 							text: String::from(&line[start..end]),
 						});
@@ -72,7 +72,7 @@ impl Syntax {
 
 					if last < line.len() {
 
-						rendered.push(StyledText {
+						rendered.push(SpannedText {
 							span: Span::Normal,
 							text: String::from(&line[last..line.len()]),
 						});
@@ -87,7 +87,7 @@ impl Syntax {
 
 		}
 
-		return StyledText::from_plain(line);
+		return SpannedText::from_plain(line);
 
 	}
 

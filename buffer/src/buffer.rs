@@ -16,7 +16,7 @@ pub struct Buffer {
 	pub cursor: Pos,
 	pub path: PathBuf,
 	pub content: Vec<String>,
-	pub rendered: Vec<Vec<StyledText>>,
+	pub rendered: Vec<Vec<SpannedText>>,
 	pub undo_stack: Vec<State>,
 	pub redo_stack: Vec<State>,
 	pub clipboard: ClipboardContext,
@@ -119,12 +119,12 @@ pub struct Range {
 	pub end: Pos,
 }
 
-pub struct StyledText {
+pub struct SpannedText {
 	pub span: Span,
 	pub text: String,
 }
 
-impl StyledText {
+impl SpannedText {
 
 	pub fn from_plain(text: &str) -> Vec<Self> {
 		return vec![Self {
