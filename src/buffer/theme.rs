@@ -70,6 +70,7 @@ impl Default for Theme {
 		spans.insert(Span::Opt, Style::new(yellow, none, FontStyle::Normal));
 		spans.insert(Span::Value, Style::new(orange, none, FontStyle::Bold));
 		spans.insert(Span::Ident, Style::new(blue, none, FontStyle::Bold));
+		spans.insert(Span::Special, Style::new(red, none, FontStyle::Normal));
 
 		return Self {
 

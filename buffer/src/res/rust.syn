@@ -1,94 +1,111 @@
-number = { DECIMAL | INTEGER }
+// wengwengweng
+
+SPACE = _{ " " }
+TAB = _{ "\t" }
+BLANK = _{ SPACE | TAB | NEWLINE | SOI | EOI }
 INTEGER = _{ ("+" | "-")? ~ (ASCII_DIGIT)+ }
 DECIMAL = _{ ("+" | "-")? ~ (ASCII_DIGIT)* ~ "." ~ (ASCII_DIGIT)+ }
+IDENT = _{ ASCII_ALPHANUMERIC | "_" }
+
+number = { DECIMAL | INTEGER }
 string = @{ "\"" ~ (!("\"") ~ ANY)* ~ "\""}
 comment = { "//" ~ (ANY)* }
 
-type = {
-	"i8"
-	| "i16"
-	| "i32"
-	| "i64"
-	| "i128"
-	| "isize"
-	| "u8"
-	| "u16"
-	| "u32"
-	| "u64"
-	| "u128"
-	| "usize"
-	| "f32"
-	| "f64"
-	| "bool"
-	| "char"
-	| "str"
-	| "String"
-	| "Vec"
-	| "HashMap"
-	| "HashSet"
-	| "Result"
-	| "Option"
-	| "Self"
-	| "Clone"
-	| "Default"
-	| "Debug"
-	| "Hash"
-	| "Copy"
-	| "Eq"
-	| "PartialEq"
-	| "Box"
-	| "Rc"
-	| "RefCell"
-	| "Arc"
-	| "Mutex"
-	| "Send"
-	| "Sync"
+types = {
+	(BLANK | !IDENT)
+	~ (
+		"i8"
+		| "i16"
+		| "i32"
+		| "i64"
+		| "i128"
+		| "isize"
+		| "u8"
+		| "u16"
+		| "u32"
+		| "u64"
+		| "u128"
+		| "usize"
+		| "f32"
+		| "f64"
+		| "bool"
+		| "char"
+		| "str"
+		| "String"
+		| "Vec"
+		| "HashMap"
+		| "HashSet"
+		| "Result"
+		| "Option"
+		| "Self"
+		| "Clone"
+		| "Default"
+		| "Debug"
+		| "Hash"
+		| "Copy"
+		| "Eq"
+		| "PartialEq"
+		| "Box"
+		| "Rc"
+		| "RefCell"
+		| "Arc"
+		| "Mutex"
+		| "Send"
+		| "Sync"
+	)
+	~ !IDENT
 }
 
 keyword = {
-	"let"
-	| "mut"
-	| "ref"
-	| "return"
-	| "use"
-	| "pub"
-	| "fn"
-	| "for"
-	| "loop"
-	| "in"
-	| "mod"
-	| "const"
-	| "static"
-	| "match"
-	| "if"
-	| "else"
-	| "as"
-	| "where"
-	| "enum"
-	| "struct"
-	| "trait"
-	| "type"
-	| "impl"
-	| "match"
+	(BLANK | !IDENT)
+	~ (
+		"let"
+		| "mut"
+		| "ref"
+		| "return"
+		| "use"
+		| "pub"
+		| "fn"
+		| "for"
+		| "loop"
+		| "in"
+		| "mod"
+		| "const"
+		| "static"
+		| "match"
+		| "if"
+		| "else"
+		| "as"
+		| "where"
+		| "enum"
+		| "struct"
+		| "trait"
+		| "type"
+		| "impl"
+		| "match"
+	)
+	~ !IDENT
 }
-
 value = {
-	"Some"
-	| "None"
-	| "Ok"
-	| "Err"
-	| "self"
-	| "true"
-	| "false"
-	| number
+	(BLANK | !IDENT)
+	~ (
+		"Some"
+		| "None"
+		| "Ok"
+		| "Err"
+		| "self"
+		| "true"
+		| "false"
+		| number
+	)
+	~ !IDENT
 }
 
-opt = {
-	"&"
-}
-
+opt = { "&" }
+args = _{ "(" ~ (!(")") ~ ANY)* ~ ")" }
+special = { (IDENT)+ ~ "!" }
 preproc = { "#[" ~ (!("]") ~ ANY)* ~ "]" }
 
-token = _{ comment | keyword | type | opt | string | preproc | value | ANY }
+token = _{ comment | keyword | types | special | opt | string | preproc | value | ANY }
 line = { (token)* }
 

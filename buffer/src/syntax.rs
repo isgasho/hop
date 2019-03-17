@@ -16,10 +16,15 @@ impl Syntax {
 
 		let mut vm = None;
 
-		if let Ok(pairs) = parser::parse(parser::Rule::grammar_rules, code) {
-			if let Ok(ast) = parser::consume_rules(pairs) {
-				vm = Some(Vm::new(optimizer::optimize(ast.clone())));
-			}
+		match parser::parse(parser::Rule::grammar_rules, code) {
+			Ok(pairs) => {
+				if let Ok(ast) = parser::consume_rules(pairs) {
+					vm = Some(Vm::new(optimizer::optimize(ast.clone())));
+				}
+			},
+			Err(e) => {
+				dbg!(e);
+			},
 		}
 
 		return Self {
@@ -112,7 +117,7 @@ impl From<&str> for Span {
 	fn from(r: &str) -> Span {
 		return match r {
 			"keyword" => Span::Keyword,
-			"type" => Span::Type,
+			"types" => Span::Type,
 			"string" => Span::String,
 			"comment" => Span::Comment,
 			"ident" => Span::Ident,

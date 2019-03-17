@@ -242,10 +242,9 @@ impl Act for View {
 				if let Some(ch) = window::char_input() {
 
 					if window::key_down(Key::LAlt) {
-						// ...
 					} else {
 
-						if (ch != '\n' && ch != '\r' && ch !='\u{7f}' && ch != '\u{1b}') {
+						if (ch.is_ascii() && ch != '\u{7f}' && ch != '\r' && ch != '\u{1b}' && ch != '\u{8}') {
 							self.buffer.insert(ch);
 						}
 
