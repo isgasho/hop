@@ -455,31 +455,41 @@ impl Act for View {
 		let tw = self.conf.font.width();
 		let th = self.line_height();
 
+		// background
 		g2d::color(self.conf.theme.background);
 		g2d::rect(vec2!(w, h));
+
+		// cursor
+		let pos = self.cursor_to_screen(self.buffer.cursor);
+
+		// cursor line
+		g2d::push();
+		g2d::color(self.conf.theme.cursor_line);
+		g2d::translate(vec2!(0, pos.y));
+		g2d::rect(vec2!(w, th));
+		g2d::pop();
+
+		// cursor
+		g2d::push();
+		g2d::translate(pos);
+		g2d::color(self.conf.theme.cursor);
+
+		match buf.mode {
+			Mode::Normal => g2d::rect(vec2!(tw, th)),
+			Mode::Insert => g2d::rect(vec2!(tw / 4, th)),
+			_ => {},
+		}
+
+		g2d::pop();
 
 		// content
 		g2d::push();
 		g2d::translate(vec2!(self.conf.margin_left, 0));
 
-		for (ln, line) in buf.rendered.iter().enumerate() {
-
-			let real_line = ln as u32 + self.start_line;
-
-			// cursor line
-			if real_line == buf.cursor.line {
-
-				g2d::push();
-				g2d::color(self.conf.theme.cursor_line);
-				g2d::translate(vec2!(-self.conf.margin_left, 0));
-				g2d::rect(vec2!(w, th));
-				g2d::pop();
-
-			}
+		for line in &buf.rendered {
 
 			let mut col = 1;
 			let mut shift_col = 0;
-			let mut cursor_drawn = false;
 
 			g2d::push();
 
@@ -527,21 +537,6 @@ impl Act for View {
 			g2d::pop();
 			g2d::translate(vec2!(0, th));
 
-		}
-
-		g2d::pop();
-
-		// cursor
-		let pos = self.cursor_to_screen(self.buffer.cursor);
-
-		g2d::push();
-		g2d::translate(pos);
-		g2d::color(self.conf.theme.cursor);
-
-		match buf.mode {
-			Mode::Normal => g2d::rect(vec2!(tw, th)),
-			Mode::Insert => g2d::rect(vec2!(tw / 4, th)),
-			_ => {},
 		}
 
 		g2d::pop();
