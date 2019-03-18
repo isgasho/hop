@@ -7,11 +7,11 @@ INTEGER = _{ ("+" | "-")? ~ (ASCII_DIGIT)+ }
 DECIMAL = _{ ("+" | "-")? ~ (ASCII_DIGIT)* ~ "." ~ (ASCII_DIGIT)+ }
 IDENT = _{ ASCII_ALPHANUMERIC | "_" }
 
-number = { DECIMAL | INTEGER }
+number = @{ DECIMAL | INTEGER }
 string = @{ "\"" ~ (!("\"") ~ ANY)* ~ "\""}
-comment = { "//" ~ (ANY)* }
+comment = @{ "//" ~ (ANY)* }
 
-types = {
+types = @{
 	(BLANK | !IDENT)
 	~ (
 		"i8"
@@ -56,8 +56,8 @@ types = {
 	~ !IDENT
 }
 
-keyword = {
-	(BLANK | !IDENT)
+keyword = @{
+	BLANK
 	~ (
 		"let"
 		| "mut"
@@ -86,9 +86,9 @@ keyword = {
 	)
 	~ !IDENT
 }
-value = {
-	(BLANK | !IDENT)
-	~ (
+value = @{
+	BLANK
+	~(
 		"Some"
 		| "None"
 		| "Ok"
@@ -106,6 +106,6 @@ args = _{ "(" ~ (!(")") ~ ANY)* ~ ")" }
 special = { (IDENT)+ ~ "!" }
 preproc = { "#[" ~ (!("]") ~ ANY)* ~ "]" }
 
-token = _{ comment | keyword | types | special | opt | string | preproc | value | ANY }
+token = _{ comment | string | preproc | keyword | types | special | opt | value | ANY }
 line = { (token)* }
 

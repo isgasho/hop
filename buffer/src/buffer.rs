@@ -14,6 +14,7 @@ pub struct Buffer {
 
 	pub mode: Mode,
 	pub cursor: Pos,
+	pub add_cursors: Vec<Pos>,
 	pub path: PathBuf,
 	pub content: Vec<String>,
 	pub rendered: Vec<Vec<SpannedText>>,
@@ -119,6 +120,7 @@ pub struct Range {
 	pub end: Pos,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SpannedText {
 	pub span: Span,
 	pub text: String,
@@ -153,6 +155,7 @@ impl Buffer {
 			content: Vec::new(),
 			rendered: Vec::with_capacity(1024),
 			cursor: Pos::new(1, 1),
+			add_cursors: Vec::new(),
 			conf: Conf::default(),
 			undo_stack: Vec::new(),
 			redo_stack: Vec::new(),
@@ -414,27 +417,25 @@ impl Buffer {
 	/// get next word position at specified position
 	pub fn next_word_at(&self, pos: Pos) -> Option<Pos> {
 
-		if let Some(line) = self.get_line_at(pos.line) {
+		let line = self.get_line_at(pos.line)?;
 
-			if pos.col < line.len() as Col {
+		if pos.col < line.len() as Col {
 
-				for (i, ch) in line[pos.col as usize + 1..].char_indices() {
+			for (i, ch) in line[pos.col as usize + 1..].char_indices() {
 
-					if self.conf.break_chars.contains(&ch) {
-						return Some(Pos {
-							col: pos.col + 1 + i as Col,
-							.. pos
-						});
-					}
-
+				if self.conf.break_chars.contains(&ch) {
+					return Some(Pos {
+						col: pos.col + 1 + i as Col,
+						.. pos
+					});
 				}
 
-				return Some(Pos {
-					col: line.len() as Col,
-					.. pos
-				});
-
 			}
+
+			return Some(Pos {
+				col: line.len() as Col,
+				.. pos
+			});
 
 		}
 
@@ -447,33 +448,30 @@ impl Buffer {
 		return self.next_word_at(self.cursor);
 	}
 
-	// todo
 	/// get previous word position at specified position
 	pub fn prev_word_at(&self, pos: Pos) -> Option<Pos> {
 
-		if let Some(line) = self.get_line_at(pos.line) {
+		let line = self.get_line_at(pos.line)?;
 
-			if pos.col <= line.len() as Col + 1 {
+		if pos.col <= line.len() as Col + 1 {
 
-				let end = clamp(pos.col as i32 - 2, 0, line.len() as i32);
+			let end = clamp(pos.col as i32 - 2, 0, line.len() as i32);
 
-				for (i, ch) in line[..end as usize].char_indices().rev() {
+			for (i, ch) in line[..end as usize].char_indices().rev() {
 
-					if self.conf.break_chars.contains(&ch) {
-						return Some(Pos {
-							col: i as Col + 2,
-							.. pos
-						});
-					}
-
+				if self.conf.break_chars.contains(&ch) {
+					return Some(Pos {
+						col: i as Col + 2,
+						.. pos
+					});
 				}
 
-				return Some(Pos {
-					col: 1,
-					.. pos
-				});
-
 			}
+
+			return Some(Pos {
+				col: 1,
+				.. pos
+			});
 
 		}
 
@@ -572,6 +570,11 @@ impl Buffer {
 	/// move to a position with bound checking
 	pub fn move_to(&mut self, pos: Pos) {
 		self.cursor = self.cursor_bound(pos);
+	}
+
+	/// adjust current cursor
+	pub fn adjust_cursor(&mut self) {
+		self.cursor = self.cursor_bound(self.cursor);
 	}
 
 	/// move current cursor left
@@ -890,27 +893,33 @@ impl Buffer {
 		self.indent_backward_at(self.cursor.line);
 	}
 
+	/// get previous non empty line
+	pub fn get_prev_line(&self, ln: Line) -> Option<Line> {
+
+		if ln as usize <= self.content.len() {
+			// ...
+		}
+
+		return None;
+
+	}
+
 	// todo: ignore comments
 	/// get indent level of a line
 	pub fn get_indent_at(&self, ln: Line) -> Option<IndentLevel> {
 
-		if let Some(line) = self.get_line_at(ln) {
+		let line = self.get_line_at(ln)?;
+		let mut indents = 0;
 
-			let mut indents = 0;
-
-			for ch in line.chars() {
-				if ch == '\t' {
-					indents += 1;
-				} else {
-					break;
-				}
+		for ch in line.chars() {
+			if ch == '\t' {
+				indents += 1;
+			} else {
+				break;
 			}
-
-			return Some(indents);
-
 		}
 
-		return None;
+		return Some(indents);
 
 	}
 
@@ -921,20 +930,16 @@ impl Buffer {
 			return Some(0);
 		}
 
-		if let Some(prev_line) = self.get_line_at(ln - 1) {
-			if let Some(mut indent) = self.get_indent_at(ln - 1) {
-				if let Some(line) = self.get_line_at(ln) {
-					if let Some(forward_pat) = &self.filetype.indent_forward {
-						if forward_pat.is_match(prev_line) {
-							indent += 1;
-						}
-					}
-				}
-				return Some(indent);
+		let prev_line = self.get_line_at(ln - 1)?;
+		let mut indent = self.get_indent_at(ln - 1)?;
+
+		if let Some(forward_pat) = &self.filetype.indent_forward {
+			if forward_pat.is_match(prev_line) {
+				indent += 1;
 			}
 		}
 
-		return None;
+		return Some(indent);
 
 	}
 
@@ -1000,13 +1005,7 @@ impl Buffer {
 
 	/// get char at position
 	pub fn char_at(&self, pos: Pos) -> Option<char> {
-
-		if let Some(content) = self.get_line_at(pos.line) {
-			return content.chars().nth(pos.col as usize - 1);
-		} else {
-			return None;
-		}
-
+		return self.get_line_at(pos.line)?.chars().nth(pos.col as usize - 1);
 	}
 
 	/// delete the word at specified position
@@ -1060,36 +1059,28 @@ impl Buffer {
 	/// search for the previous appearence of the given text in given line
 	pub fn search_prev_inline_at(&self, pos: Pos, target: &str) -> Option<Pos> {
 
-		if let Some(line) = self.get_line_at(pos.line) {
-			if let Some(slice) = line.get(0..pos.col as usize) {
-				if let Some(index) = slice.rfind(target) {
-					return Some(Pos {
-						col: index as Col + 1,
-						.. pos
-					});
-				}
-			}
-		}
+		let line = self.get_line_at(pos.line)?;
+		let slice = line.get(0..pos.col as usize)?;
+		let index = slice.rfind(target)?;
 
-		return None;
+		return Some(Pos {
+			col: index as Col + 1,
+			.. pos
+		});
 
 	}
 
 	/// search for the next appearence of the given text in given line
 	pub fn search_next_inline_at(&self, pos: Pos, target: &str) -> Option<Pos> {
 
-		if let Some(line) = self.get_line_at(pos.line) {
-			if let Some(slice) = line.get(pos.col as usize..line.len()) {
-				if let Some(index) = slice.find(target) {
-					return Some(Pos {
-						col: index as Col + 1 + pos.col,
-						.. pos
-					});
-				}
-			}
-		}
+		let line = self.get_line_at(pos.line)?;
+		let slice = line.get(pos.col as usize..line.len())?;
+		let index = slice.find(target)?;
 
-		return None;
+		return Some(Pos {
+			col: index as Col + 1 + pos.col,
+			.. pos
+		});
 
 	}
 

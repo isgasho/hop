@@ -81,10 +81,9 @@ impl View {
 
 	pub fn get_view_rows(&self) -> u32 {
 
-		g2d::set_font(&self.conf.font);
-
-		let (w, h) = window::size().into();
-		let rows = h as f32 / ((g2d::font_height() as i32 + self.conf.line_space) as f32 * self.conf.scale);
+		let size: Vec2 = window::size().into();
+		let size = size / self.conf.scale;
+		let rows = size.y as f32 / self.line_height();
 
 		return rows as u32;
 
@@ -116,6 +115,102 @@ impl View {
 			crate::start(crate::browser::View::new(browser));
 		}
 
+	}
+
+	pub fn line_height(&self) -> f32 {
+		return (self.conf.font.height() as i32 + self.conf.line_space) as f32;
+	}
+
+	pub fn pos_to_col(&self, ic: u32, line: &[SpannedText]) -> Col {
+
+		let mut col = 1;
+		let mut shift_col = 0;
+
+		for chunk in line {
+
+			let splitted = chunk.text.split('\t');
+			let count = splitted.clone().count();
+
+			for (i, text) in splitted.enumerate() {
+
+				col += text.len() as u32;
+				shift_col += text.len() as u32;
+
+				if i < count - 1 {
+
+					let sw = self.conf.shift_width;
+					let offset = sw - shift_col as u32 % sw;
+
+					shift_col += offset as u32;
+					col += 1;
+
+				}
+
+				if shift_col >= ic {
+					return col - (shift_col - ic) - 1;
+				}
+
+			}
+
+		}
+
+		return 0;
+
+	}
+
+	pub fn col_to_pos(&self, ic: Col, line: &[SpannedText]) -> u32 {
+
+		let mut col = 1;
+		let mut shift_col = 0;
+
+		for chunk in line {
+
+			let splitted = chunk.text.split('\t');
+			let count = splitted.clone().count();
+
+			for (i, text) in splitted.enumerate() {
+
+				col += text.len() as u32;
+				shift_col += text.len() as u32;
+
+				if i < count - 1 {
+
+					let sw = self.conf.shift_width;
+					let offset = sw - shift_col as u32 % sw;
+
+					shift_col += offset as u32;
+					col += 1;
+
+				}
+
+				if col >= ic {
+					return shift_col - (col - ic) + 1;
+				}
+
+			}
+
+		}
+
+		return 0;
+
+	}
+
+	pub fn screen_to_buffer(&self, pos: Vec2) -> Pos {
+
+		let pos = pos / self.conf.scale;
+		let ln = (pos.y / self.line_height()) as u32;
+		let mut cn = ((pos.x - self.conf.margin_left as f32) / self.conf.font.width() as f32) as u32 + 1;
+
+		if let Some(content) = self.buffer.rendered.get(ln as usize) {
+			cn = self.pos_to_col(cn, &content);
+		}
+
+		return Pos::new(ln + self.start_line, cn);
+
+	}
+
+	pub fn buffer_to_screen(&self, pos: Pos) -> Vec2 {
+		unimplemented!();
 	}
 
 }
@@ -170,6 +265,11 @@ impl Act for View {
 
 				if window::key_pressed(Key::W) {
 					self.buffer.write();
+				}
+
+				if window::mouse_pressed(Mouse::Left) {
+					let mpos = window::mouse_pos();
+					self.buffer.move_to(self.screen_to_buffer(mpos.into()));
 				}
 
 				if let Some(scroll) = window::scroll_delta() {
@@ -309,6 +409,7 @@ impl Act for View {
 		let (start, end) = self.view_range();
 
 		self.buffer.render(start as usize, end as usize);
+		self.buffer.adjust_cursor();
 
 	}
 

@@ -23,7 +23,7 @@ impl Syntax {
 				}
 			},
 			Err(e) => {
-				dbg!(e);
+				eprintln!("syntax file error: {:?}", e);
 			},
 		}
 

@@ -149,8 +149,6 @@ impl Act for View {
 
 		if let Some(scroll) = window::scroll_delta() {
 
-			dbg!(scroll);
-
 			if scroll.y > 0 {
 				self.browser.move_up();
 			} else if scroll.y < 0 {
