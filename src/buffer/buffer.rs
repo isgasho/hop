@@ -109,14 +109,6 @@ impl View {
 
 	}
 
-	pub fn start_browser(&self) {
-
-		if let Ok(browser) = Browser::from_file(self.buffer.path.clone()) {
-			crate::start(crate::browser::View::new(browser));
-		}
-
-	}
-
 	pub fn line_height(&self) -> f32 {
 		return (self.conf.font.height() as i32 + self.conf.line_space) as f32;
 	}
@@ -124,26 +116,30 @@ impl View {
 	pub fn screen_to_cursor(&self, pos: Vec2) -> Pos {
 
 		let pos = pos / self.conf.scale;
-		let ln = (pos.y / self.line_height()) as u32;
-		let cn = ((pos.x - self.conf.margin_left as f32) / self.conf.font.width() as f32) as u32 + 1;
-		let cn = self.buffer.get_unshifted_col(cn, ln + self.start_line, self.conf.shift_width);
+		let v_line = (pos.y / self.line_height()) as u32;
+		let line = v_line + self.start_line;
+		let v_col = ((pos.x - self.conf.margin_left as f32) / self.conf.font.width() as f32) as u32 + 1;
+		let col = self.buffer.get_unshifted_col(v_col, line, self.conf.shift_width);
 
-		return Pos::new(ln + self.start_line, cn);
+		return Pos::new(line, col);
 
 	}
 
 	pub fn cursor_to_screen(&self, pos: Pos) -> Vec2 {
 
-		let y = pos.line - self.start_line;
-		let mut x = self.conf.margin_left as i32;
+		let v_line = pos.line - self.start_line;
+		let y = v_line as f32 * self.line_height();
+		let v_col = self.buffer.get_shifted_pos(pos, self.conf.shift_width) as i32;
+		let x = (v_col - 1) * self.conf.font.width() as i32 + self.conf.margin_left;
 
-		if let Some(content) = self.buffer.rendered.get(y as usize) {
-			x = self.buffer.get_shifted_col(pos, self.conf.shift_width) as i32;
-			x = (x - 1) * self.conf.font.width() as i32 + self.conf.margin_left;
+		return vec2!(x, y);
+
+	}
+
+	pub fn start_browser(&self) {
+		if let Ok(browser) = Browser::from_file(self.buffer.path.clone()) {
+			crate::start(crate::browser::View::new(browser));
 		}
-
-		return vec2!(x, y as f32 * self.line_height());
-
 	}
 
 }

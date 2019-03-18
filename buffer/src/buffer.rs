@@ -1218,7 +1218,7 @@ impl Buffer {
 
 	}
 
-	pub fn get_shifted_col(&self, pos: Pos, width: u32) -> u32 {
+	pub fn get_shifted_pos(&self, pos: Pos, width: u32) -> u32 {
 
 		let mut shift = 1;
 
@@ -1230,7 +1230,7 @@ impl Buffer {
 					return shift;
 				}
 
-				if (ch == '\t') {
+				if ch == '\t' {
 					shift += width - (shift - 1) as u32 % width;
 				} else {
 					shift += 1;
@@ -1253,13 +1253,13 @@ impl Buffer {
 
 		if let Some(line) = self.get_line_at(ln) {
 
-			for (i, ch) in line.char_indices() {
+			for ch in line.chars() {
 
 				if pos <= shift {
 					return col;
 				}
 
-				if (ch == '\t') {
+				if ch == '\t' {
 					shift += width - (shift - 1) as u32 % width;
 					col += 1;
 				} else {
