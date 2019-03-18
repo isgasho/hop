@@ -714,6 +714,10 @@ impl Buffer {
 	/// insert a char at a cursor position
 	pub fn insert_at(&mut self, mut pos: Pos, ch: char) -> Pos {
 
+		if !ch.is_ascii() {
+			return pos;
+		}
+
 		if let Some(mut line) = self.get_line_at(pos.line).map(Clone::clone) {
 
 			if let Some(end_char) = self.filetype.pairs.get(&ch) {
