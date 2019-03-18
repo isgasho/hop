@@ -14,7 +14,7 @@ pub struct Buffer {
 
 	pub mode: Mode,
 	pub cursor: Pos,
-	pub add_cursors: Vec<Pos>,
+	pub child_cursors: Vec<Pos>,
 	pub path: PathBuf,
 	pub content: Vec<String>,
 	pub rendered: Vec<Vec<SpannedText>>,
@@ -25,7 +25,6 @@ pub struct Buffer {
 	pub conf: Conf,
 	pub log: Vec<String>,
 	pub filetype: FileType,
-	pub mark: Option<Pos>,
 
 }
 
@@ -155,12 +154,11 @@ impl Buffer {
 			content: Vec::new(),
 			rendered: Vec::with_capacity(1024),
 			cursor: Pos::new(1, 1),
-			add_cursors: Vec::new(),
+			child_cursors: Vec::new(),
 			conf: Conf::default(),
 			undo_stack: Vec::new(),
 			redo_stack: Vec::new(),
 			modified: false,
-			mark: None,
 			clipboard: ClipboardProvider::new().unwrap(),
 			log: Vec::new(),
 			filetype: ft_test::rust(),
@@ -1192,21 +1190,18 @@ impl Buffer {
 		}
 	}
 
-	/// mark at a position
-	pub fn mark_at(&mut self, pos: Pos) {
-		self.mark = Some(pos);
+	/// add a cursor
+	pub fn add_cursor(&mut self, pos: Pos) {
+		self.child_cursors.push(pos);
 	}
 
-	/// mark at current position
-	pub fn mark(&mut self) {
-		self.mark_at(self.cursor);
-	}
+	/// reset states
+	pub fn reset(&mut self) {
 
-	/// move to mark
-	pub fn to_mark(&mut self) {
-		if let Some(mark) = self.mark {
-			self.move_to(mark);
-		}
+		self.child_cursors.clear();
+		self.log.clear();
+		self.mode = Mode::Normal;
+
 	}
 
 }

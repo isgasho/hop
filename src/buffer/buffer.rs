@@ -279,12 +279,6 @@ impl Act for View {
 
 				}
 
-				if window::mouse_pressed(Mouse::Left) {
-
-					let mpos: Vec2 = window::mouse_pos().into();
-
-				}
-
 				if window::key_pressed(Key::Return) {
 					self.buffer.start_insert();
 				}
@@ -297,9 +291,20 @@ impl Act for View {
 					self.buffer.write();
 				}
 
+				if window::key_pressed(Key::Escape) {
+					self.buffer.reset();
+				}
+
 				if window::mouse_pressed(Mouse::Left) {
+
 					let mpos = window::mouse_pos();
-					self.buffer.move_to(self.screen_to_cursor(mpos.into()));
+
+					if window::key_down(Key::LAlt) {
+						self.buffer.add_cursor(self.screen_to_cursor(mpos.into()));
+					} else {
+						self.buffer.move_to(self.screen_to_cursor(mpos.into()));
+					}
+
 				}
 
 				if let Some(scroll) = window::scroll_delta() {
@@ -459,28 +464,38 @@ impl Act for View {
 		g2d::color(self.conf.theme.background);
 		g2d::rect(vec2!(w, h));
 
-		// cursor
-		let pos = self.cursor_to_screen(self.buffer.cursor);
+		let draw_cursor = |cpos: Pos| {
 
-		// cursor line
-		g2d::push();
-		g2d::color(self.conf.theme.cursor_line);
-		g2d::translate(vec2!(0, pos.y));
-		g2d::rect(vec2!(w, th));
-		g2d::pop();
+			// cursor
+			let pos = self.cursor_to_screen(cpos);
 
-		// cursor
-		g2d::push();
-		g2d::translate(pos);
-		g2d::color(self.conf.theme.cursor);
+			// cursor line
+			g2d::push();
+			g2d::color(self.conf.theme.cursor_line);
+			g2d::translate(vec2!(0, pos.y));
+			g2d::rect(vec2!(w, th));
+			g2d::pop();
 
-		match buf.mode {
-			Mode::Normal => g2d::rect(vec2!(tw, th)),
-			Mode::Insert => g2d::rect(vec2!(tw / 4, th)),
-			_ => {},
+			// cursor
+			g2d::push();
+			g2d::translate(pos);
+			g2d::color(self.conf.theme.cursor);
+
+			match buf.mode {
+				Mode::Normal => g2d::rect(vec2!(tw, th)),
+				Mode::Insert => g2d::rect(vec2!(tw / 4, th)),
+				_ => {},
+			}
+
+			g2d::pop();
+
+		};
+
+		draw_cursor(buf.cursor);
+
+		for c in &buf.child_cursors {
+			draw_cursor(*c);
 		}
-
-		g2d::pop();
 
 		// content
 		g2d::push();
