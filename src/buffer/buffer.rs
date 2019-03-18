@@ -133,8 +133,14 @@ impl View {
 
 			for (i, text) in splitted.enumerate() {
 
-				col += text.len() as u32;
-				shift_col += text.len() as u32;
+				if !text.is_empty() {
+
+					let len = text.len();
+
+					col += len as u32;
+					shift_col += len as u32;
+
+				}
 
 				if i < count - 1 {
 
@@ -154,11 +160,15 @@ impl View {
 
 		}
 
-		return 0;
+		return col;
 
 	}
 
 	pub fn col_to_pos(&self, ic: Col, line: &[SpannedText]) -> u32 {
+
+		if (ic == 1) {
+			return 1;
+		}
 
 		let mut col = 1;
 		let mut shift_col = 0;
@@ -170,8 +180,14 @@ impl View {
 
 			for (i, text) in splitted.enumerate() {
 
-				col += text.len() as u32;
-				shift_col += text.len() as u32;
+				if !text.is_empty() {
+
+					let len = text.len();
+
+					col += len as u32;
+					shift_col += len as u32;
+
+				}
 
 				if i < count - 1 {
 
@@ -191,11 +207,15 @@ impl View {
 
 		}
 
-		return 0;
+		if shift_col > 0 {
+			return shift_col;
+		} else {
+			return 1;
+		}
 
 	}
 
-	pub fn screen_to_buffer(&self, pos: Vec2) -> Pos {
+	pub fn screen_to_cursor(&self, pos: Vec2) -> Pos {
 
 		let pos = pos / self.conf.scale;
 		let ln = (pos.y / self.line_height()) as u32;
@@ -209,8 +229,18 @@ impl View {
 
 	}
 
-	pub fn buffer_to_screen(&self, pos: Pos) -> Vec2 {
-		unimplemented!();
+	pub fn cursor_to_screen(&self, pos: Pos) -> Vec2 {
+
+		let y = pos.line - self.start_line;
+		let mut x = self.conf.margin_left as i32;
+
+		if let Some(content) = self.buffer.rendered.get(y as usize) {
+			x = self.col_to_pos(pos.col, &content) as i32;
+			x = (x - 1) * self.conf.font.width() as i32 + self.conf.margin_left;
+		}
+
+		return vec2!(x, y as f32 * self.line_height());
+
 	}
 
 }
@@ -269,7 +299,7 @@ impl Act for View {
 
 				if window::mouse_pressed(Mouse::Left) {
 					let mpos = window::mouse_pos();
-					self.buffer.move_to(self.screen_to_buffer(mpos.into()));
+					self.buffer.move_to(self.screen_to_cursor(mpos.into()));
 				}
 
 				if let Some(scroll) = window::scroll_delta() {
@@ -422,17 +452,15 @@ impl Act for View {
 
 		let (w, h) = window::size().into();
 		let (w, h) = (w as f32 / self.conf.scale, h as f32 / self.conf.scale);
-		let tw = g2d::font_width();
-		let th = g2d::font_height() as i32 + self.conf.line_space;
+		let tw = self.conf.font.width();
+		let th = self.line_height();
 
 		g2d::color(self.conf.theme.background);
 		g2d::rect(vec2!(w, h));
 
-		// viewport
-		g2d::translate(vec2!(self.conf.margin_left, 0));
-
 		// content
 		g2d::push();
+		g2d::translate(vec2!(self.conf.margin_left, 0));
 
 		for (ln, line) in buf.rendered.iter().enumerate() {
 
@@ -458,30 +486,6 @@ impl Act for View {
 			// content
 			for chunk in line {
 
-				// cursor
-				if real_line == buf.cursor.line && !cursor_drawn {
-
-					if col >= buf.cursor.col as usize {
-
-						let diff = buf.cursor.col as i32 - col as i32;
-
-						g2d::push();
-						g2d::translate(vec2!(diff * tw as i32, 0));
-						g2d::color(self.conf.theme.cursor);
-
-						match buf.mode {
-							Mode::Normal => g2d::rect(vec2!(tw, th)),
-							Mode::Insert => g2d::rect(vec2!(tw / 4, th)),
-							_ => {},
-						}
-
-						g2d::pop();
-						cursor_drawn = true;
-
-					}
-
-				}
-
 				let splitted = chunk.text.split('\t');
 				let count = splitted.clone().count();
 
@@ -495,7 +499,7 @@ impl Act for View {
 					}
 
 					g2d::text(text);
-					g2d::translate(vec2!(text.len() * g2d::font_width() as usize, 0));
+					g2d::translate(vec2!(text.len() * tw as usize, 0));
 					col += text.len();
 					shift_col += text.len();
 
@@ -520,28 +524,24 @@ impl Act for View {
 
 			}
 
-			// cursor
-			if real_line == buf.cursor.line && !cursor_drawn {
-
-				let diff = buf.cursor.col as i32 - col as i32;
-
-				g2d::push();
-				g2d::translate(vec2!(diff * tw as i32, 0));
-				g2d::color(self.conf.theme.cursor);
-
-				match buf.mode {
-					Mode::Normal => g2d::rect(vec2!(tw, th)),
-					Mode::Insert => g2d::rect(vec2!(tw / 4, th)),
-					_ => {},
-				}
-
-				g2d::pop();
-
-			}
-
 			g2d::pop();
 			g2d::translate(vec2!(0, th));
 
+		}
+
+		g2d::pop();
+
+		// cursor
+		let pos = self.cursor_to_screen(self.buffer.cursor);
+
+		g2d::push();
+		g2d::translate(pos);
+		g2d::color(self.conf.theme.cursor);
+
+		match buf.mode {
+			Mode::Normal => g2d::rect(vec2!(tw, th)),
+			Mode::Insert => g2d::rect(vec2!(tw / 4, th)),
+			_ => {},
 		}
 
 		g2d::pop();
