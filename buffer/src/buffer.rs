@@ -1218,6 +1218,65 @@ impl Buffer {
 
 	}
 
+	pub fn get_shifted_col(&self, pos: Pos, width: u32) -> u32 {
+
+		let mut shift = 1;
+
+		if let Some(line) = self.get_line_at(pos.line) {
+
+			for (i, ch) in line.char_indices() {
+
+				if i as u32 == pos.col - 1 {
+					return shift;
+				}
+
+				if (ch == '\t') {
+					shift += width - (shift - 1) as u32 % width;
+				} else {
+					shift += 1;
+				}
+
+			}
+
+		} else {
+			return 1;
+		}
+
+		return shift;
+
+	}
+
+	pub fn get_unshifted_col(&self, pos: u32, ln: u32, width: u32) -> Col {
+
+		let mut shift = 1;
+		let mut col = 1;
+
+		if let Some(line) = self.get_line_at(ln) {
+
+			for (i, ch) in line.char_indices() {
+
+				if pos <= shift {
+					return col;
+				}
+
+				if (ch == '\t') {
+					shift += width - (shift - 1) as u32 % width;
+					col += 1;
+				} else {
+					shift += 1;
+					col += 1;
+				}
+
+			}
+
+		} else {
+			return 1;
+		}
+
+		return col;
+
+	}
+
 }
 
 pub fn clamp<N: PartialOrd>(x: N, min: N, max: N) -> N {

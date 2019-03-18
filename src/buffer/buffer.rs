@@ -121,109 +121,12 @@ impl View {
 		return (self.conf.font.height() as i32 + self.conf.line_space) as f32;
 	}
 
-	pub fn pos_to_col(&self, ic: u32, line: &[SpannedText]) -> Col {
-
-		let mut col = 1;
-		let mut shift_col = 0;
-
-		for chunk in line {
-
-			let splitted = chunk.text.split('\t');
-			let count = splitted.clone().count();
-
-			for (i, text) in splitted.enumerate() {
-
-				if !text.is_empty() {
-
-					let len = text.len();
-
-					col += len as u32;
-					shift_col += len as u32;
-
-				}
-
-				if i < count - 1 {
-
-					let sw = self.conf.shift_width;
-					let offset = sw - shift_col as u32 % sw;
-
-					shift_col += offset as u32;
-					col += 1;
-
-				}
-
-				if shift_col >= ic {
-					return col - (shift_col - ic) - 1;
-				}
-
-			}
-
-		}
-
-		return col;
-
-	}
-
-	pub fn col_to_pos(&self, ic: Col, line: &[SpannedText]) -> u32 {
-
-		if ic == 1 {
-			return 1;
-		}
-
-		let mut col = 1;
-		let mut shift_col = 0;
-
-		for chunk in line {
-
-			let splitted = chunk.text.split('\t');
-			let count = splitted.clone().count();
-
-			for (i, text) in splitted.enumerate() {
-
-				if !text.is_empty() {
-
-					let len = text.len();
-
-					col += len as u32;
-					shift_col += len as u32;
-
-				}
-
-				if i < count - 1 {
-
-					let sw = self.conf.shift_width;
-					let offset = sw - shift_col as u32 % sw;
-
-					shift_col += offset as u32;
-					col += 1;
-
-				}
-
-				if col >= ic {
-					return shift_col - (col - ic) + 1;
-				}
-
-			}
-
-		}
-
-		if shift_col > 0 {
-			return shift_col;
-		} else {
-			return 1;
-		}
-
-	}
-
 	pub fn screen_to_cursor(&self, pos: Vec2) -> Pos {
 
 		let pos = pos / self.conf.scale;
 		let ln = (pos.y / self.line_height()) as u32;
-		let mut cn = ((pos.x - self.conf.margin_left as f32) / self.conf.font.width() as f32) as u32 + 1;
-
-		if let Some(content) = self.buffer.rendered.get(ln as usize) {
-			cn = self.pos_to_col(cn, &content);
-		}
+		let cn = ((pos.x - self.conf.margin_left as f32) / self.conf.font.width() as f32) as u32 + 1;
+		let cn = self.buffer.get_unshifted_col(cn, ln + self.start_line, self.conf.shift_width);
 
 		return Pos::new(ln + self.start_line, cn);
 
@@ -235,7 +138,7 @@ impl View {
 		let mut x = self.conf.margin_left as i32;
 
 		if let Some(content) = self.buffer.rendered.get(y as usize) {
-			x = self.col_to_pos(pos.col, &content) as i32;
+			x = self.buffer.get_shifted_col(pos, self.conf.shift_width) as i32;
 			x = (x - 1) * self.conf.font.width() as i32 + self.conf.margin_left;
 		}
 
