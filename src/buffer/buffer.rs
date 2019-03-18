@@ -166,7 +166,7 @@ impl View {
 
 	pub fn col_to_pos(&self, ic: Col, line: &[SpannedText]) -> u32 {
 
-		if (ic == 1) {
+		if ic == 1 {
 			return 1;
 		}
 
@@ -375,16 +375,9 @@ impl Act for View {
 				}
 
 				if let Some(ch) = window::char_input() {
-
-					if window::key_down(Key::LAlt) {
-					} else {
-
-						if (ch.is_ascii() && ch != '\u{7f}' && ch != '\r' && ch != '\u{1b}' && ch != '\u{8}') {
-							self.buffer.insert(ch);
-						}
-
+					if !window::key_down(Key::LAlt) {
+						self.buffer.insert(ch);
 					}
-
 				}
 
 				if window::key_pressed(Key::Escape) {
@@ -503,7 +496,6 @@ impl Act for View {
 
 		for line in &buf.rendered {
 
-			let mut col = 1;
 			let mut shift_col = 0;
 
 			g2d::push();
@@ -525,7 +517,6 @@ impl Act for View {
 
 					g2d::text(text);
 					g2d::translate(vec2!(text.len() * tw as usize, 0));
-					col += text.len();
 					shift_col += text.len();
 
 					// tab shift
@@ -541,7 +532,6 @@ impl Act for View {
 
 						g2d::translate(vec2!(tw * offset as u32, 0));
 						shift_col += offset as usize;
-						col += 1;
 
 					}
 

@@ -25,6 +25,7 @@ pub struct Buffer {
 	pub conf: Conf,
 	pub log: Vec<String>,
 	pub filetype: FileType,
+	invalid_chars: HashSet<char>,
 
 }
 
@@ -147,6 +148,14 @@ impl Buffer {
 		let mut registry = FTRegistry::new();
 		let fname = format!("{}", path.display());
 
+		let mut invalid_chars = HashSet::new();
+
+		invalid_chars.insert('\u{7f}');
+		invalid_chars.insert('\r');
+		invalid_chars.insert('\n');
+		invalid_chars.insert('\u{1b}');
+		invalid_chars.insert('\u{8}');
+
 		let mut buf = Self {
 
 			mode: Mode::Normal,
@@ -162,6 +171,7 @@ impl Buffer {
 			clipboard: ClipboardProvider::new().unwrap(),
 			log: Vec::new(),
 			filetype: ft_test::rust(),
+			invalid_chars: invalid_chars,
 
 		};
 
@@ -713,6 +723,10 @@ impl Buffer {
 	pub fn insert_at(&mut self, mut pos: Pos, ch: char) -> Pos {
 
 		if !ch.is_ascii() {
+			return pos;
+		}
+
+		if self.invalid_chars.contains(&ch) {
 			return pos;
 		}
 
